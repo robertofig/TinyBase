@@ -116,10 +116,18 @@ _CompareIdx(buffer A, buffer B, usz AmountToCompare)
     return Result - (usz)A.Base;
 }
 
+internal b32
+_CompareBool(buffer A, buffer B, usz AmountToCompare)
+{
+    usz Result = _CompareIdx(A, B, AmountToCompare);
+    return Result == AmountToCompare;
+}
+
 external usz
 CompareBuffers(buffer A, buffer B, usz AmountToCompare, int Flag)
 {
-    return (  Flag & RETURN_IDX_DIFF ? _CompareIdx(A, B, AmountToCompare)
+    return (Flag & RETURN_BOOL ? _CompareBool(A, B, AmountToCompare)
+            : Flag & RETURN_IDX_DIFF ? _CompareIdx(A, B, AmountToCompare)
             :                          _ComparePtr(A.Base, B.Base, AmountToCompare));
 }
 

@@ -129,7 +129,7 @@ external usz DataInBuffer(void* Needle, usz NeedleSize, buffer Haystack, int Fla
 external usz CompareBuffers(buffer A, buffer B, usz AmountToCompare, int Flag);
 
 /* Compares two buffers byte by byte for [AmountToCompare] bytes, until they differ, or
-|  until the smaller of each buffer's [.WriteCur]. Pass either RETURN_IDX_DIFF or
+|  until the smaller of each buffer's [.WriteCur]. Pass either RETURN_BOOL, RETURN_IDX_DIFF or
 |  RETURN_PTR_DIFF to [Flags], returns the point where they differ, or the amount compared if not.
 |--- Return: based on return type flag. */
 
