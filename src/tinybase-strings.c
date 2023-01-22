@@ -335,13 +335,13 @@ CharInString(mb_char Needle, string Haystack, int Flags)
 {
     // OBS: Assumes Needle is in the same encoding as Haystack.
     usz Result = INVALID_IDX;
-    if (Needle < 0x100)
+    u32 NeedleSize = GetMultibyteCharSize(Needle, Haystack.Enc);
+    if (NeedleSize == 1)
     {
         Result = ByteInBuffer((u8)Needle, Haystack.Buffer, Flags);
     }
     else
     {
-        usz NeedleSize = (Needle < 0x10000) ? 2 : ((Needle < 0x1000000) ? 3 : 4);
         buffer NeedleBuf = Buffer((u8*)&Needle, NeedleSize, 0);
         Result = BufferInBuffer(NeedleBuf, Haystack.Buffer, Flags);
     }
