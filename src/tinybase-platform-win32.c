@@ -52,14 +52,17 @@ LoadSystemInfo(void)
 //========================================
 
 external void
-ClearMemory(void* Address, usz SizeToClear)
+ClearMemory(buffer* Mem)
 {
-    memset(Address, 0, SizeToClear);
+    memset(Mem->Base, 0, Mem->Size);
+    Mem->WriteCur = 0;
 }
 
-external void*
+external buffer
 GetMemory(usz Size, void* Address, int Flags)
 {
+    buffer Result = {0};
+    
     DWORD Access = 0;
     if (Flags & MEM_GUARD) Access = PAGE_NOACCESS;
     else if (Flags & MEM_EXEC)
@@ -70,30 +73,42 @@ GetMemory(usz Size, void* Address, int Flags)
     }
     else if (Flags & MEM_WRITE) Access = PAGE_READWRITE;
     else Access = PAGE_READONLY;
-    
     DWORD AllocType = MEM_RESERVE | MEM_COMMIT | ((Flags & MEM_HUGEPAGE) ? MEM_LARGE_PAGES : 0);
     
-    void* Result = VirtualAlloc(Address, Size, AllocType, Access);
+    void* Ptr = VirtualAlloc(Address, Size, AllocType, Access);
+    if (Ptr)
+    {
+        Result.Base = (u8*)Ptr;
+        Result.Size = (gSysInfo.PageSize) ? Align(Size, gSysInfo.PageSize) : Size;
+    }
     return Result;
 }
 
 external void
-FreeMemory(void* Address)
+FreeMemory(buffer* Mem)
 {
-    VirtualFree(Address, 0, MEM_RELEASE);
+    VirtualFree(Mem->Base, 0, MEM_RELEASE);
+    memset(Mem, 0, sizeof(buffer));
 }
 
-external void*
+external buffer
 GetMemoryFromHeap(usz SizeToAllocate)
 {
+    buffer Result = {0};
     void* Ptr = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, SizeToAllocate);
-    return Ptr;
+    if (Ptr)
+    {
+        Result.Base = (u8*)Ptr;
+        Result.Size = SizeToAllocate;
+    }
+    return Result;
 }
 
 external void
-FreeMemoryFromHeap(void* Address)
+FreeMemoryFromHeap(buffer* Mem)
 {
-    HeapFree(GetProcessHeap(), 0, Address);
+    HeapFree(GetProcessHeap(), 0, Mem->Base);
+    memset(Mem, 0, sizeof(buffer));
 }
 
 //========================================
@@ -134,7 +149,8 @@ CreateNewFile(void* Filename, i32 Flags)
 external file
 OpenFileHandle(void* Filename, i32 Flags)
 {
-    file Result = _NewFile(Filename, OPEN_EXISTING, Flags);
+    DWORD CreationMode = (Flags & FORCE_OPEN) ? OPEN_ALWAYS : OPEN_EXISTING;
+    file Result = _NewFile(Filename, CreationMode, Flags);
     return Result;
 }
 
@@ -214,22 +230,20 @@ ReadFromFile(file File, void* Dst, usz AmountToRead, usz StartPos)
 external buffer
 ReadEntireFile(file File)
 {
-    buffer Result = {0};
-    
     usz FileSize = FileSizeOf(File);
-    void* Mem = GetMemory(FileSize, 0, MEM_READ|MEM_WRITE);
-    if (Mem)
+    buffer Mem = GetMemory(FileSize, 0, MEM_READ|MEM_WRITE);
+    if (Mem.Base)
     {
-        if (ReadFromFile(File, Mem, FileSize, 0))
+        if (ReadFromFile(File, Mem.Base, FileSize, 0))
         {
-            Result = Buffer(Mem, FileSize, FileSize);
+            Mem.WriteCur = FileSize;
         }
         else
         {
-            FreeMemory(Mem);
+            FreeMemory(&Mem);
         }
     }
-    return Result;
+    return Mem;
 }
 
 external b32

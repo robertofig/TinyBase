@@ -46,32 +46,30 @@ external void LoadSystemInfo(void);
 #define MEM_EXEC     0x8  // Marks memory pages as executable.
 #define MEM_HUGEPAGE 0x10 // Reserves large memory pages, if the system supports.
 
-external void* GetMemory(usz Size, _opt void* Address, _opt int AccessFlags);
+external buffer GetMemory(usz Size, _opt void* Address, _opt int AccessFlags);
 
 /* Allocates memory block of [Size] bytes, rounded up to system page size.
  |  Block is guaranteed to be zeroed. A start [Address] can optionally be passed
  |  (system will choose random address if this is NULL). [AccessFlags] determines
  |  memory block behaviour; if none is passed, block is set to read-only.
- |--- Return: pointer to memory block if successful, or NULL if not. */
+ |--- Return: buffer of allocated memory if successful, empty otherwise. */
 
-external void ClearMemory(void* Address, usz SizeToClear);
+external void ClearMemory(buffer* Mem);
 
-/* Clears [SizeToClear] bytes starting from [Address] to zero. Function does not
-|  check for buffer overflows, it is responsability of the caller to pass an
-|  amount of bytes that will not result in a segfault.
+/* Clears entire buffer in [Mem] to zero.
  |--- Return: nothing. */
 
-external void FreeMemory(void* Address);
+external void FreeMemory(buffer* Mem);
 
 /* Frees memory block allocated with GetMemory(). Frees the entire block at once.
  |--- Return: nothing. */
 
-external void* GetMemoryFromHeap(usz Size);
+external buffer GetMemoryFromHeap(usz Size);
 
 /* Gets a chunk of memory of [Size] bytes from the main process heap.
-|--- Return: pointer to memory block if successful, or NULL if not. */
+|--- Return: buffer of heap memory if successful, empty otherwise. */
 
-external void FreeMemoryFromHeap(void* Address);
+external void FreeMemoryFromHeap(buffer* Mem);
 
 /* Frees memory chunk allocated with GetMemoryFromHeap().
  |--- Return: nothing. */
