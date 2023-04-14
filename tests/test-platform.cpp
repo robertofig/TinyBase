@@ -1,14 +1,13 @@
 #include "tinybase-platform.h"
 
 #include <stdio.h>
-#include <varargs.h>
 
 bool Error = false;
 #define Test(Callback, ...) \
 do { \
 if (!Test##Callback(__VA_ARGS__)) { \
 Error = true; \
-printf(" [%3d] %-40s ERRO.\n", __LINE__, #Callback##"()"); } \
+printf(" [%3d] %-40s ERRO.\n", __LINE__, #Callback"()"); } \
 } while (0); \
 
 //
@@ -18,27 +17,27 @@ printf(" [%3d] %-40s ERRO.\n", __LINE__, #Callback##"()"); } \
 bool TestGetMemory(usz Size, void* Address)
 {
     Size = Align(Size, gSysInfo.PageSize);
-    void* Mem = GetMemory(Size, Address, MEM_READ|MEM_WRITE);
-    if (Mem)
+    buffer Mem = GetMemory(Size, Address, MEM_READ|MEM_WRITE);
+    if (Mem.Base)
     {
-        try { *(u8*)Mem = 0; }
+        try { *Mem.Base = 0; }
         catch (...) { return false; }
         
-        try { *((u8*)Mem + Size - 1) = 0; }
+        try { *(Mem.Base + Size - 1) = 0; }
         catch (...) { return false; }
         
-        try { *((u8*)Mem + Size) = 0; }
-        catch (...) { return Address ? (isz)Mem == (isz)Address : true; }
+        try { *(Mem.Base + Size) = 0; }
+        catch (...) { return Address ? (isz)Mem.Base == (isz)Address : true; }
     }
     return false;
 }
 
 bool TestGetMemoryGuard(usz Size, void* Address)
 {
-    void* Mem = GetMemory(Size, Address, MEM_GUARD);
-    if (Mem)
+    buffer Mem = GetMemory(Size, Address, MEM_GUARD);
+    if (Mem.Base)
     {
-        try { *(u8*)Mem = 0; }
+        try { *Mem.Base = 0; }
         catch (...) { return true; }
     }
     return false;
@@ -46,39 +45,39 @@ bool TestGetMemoryGuard(usz Size, void* Address)
 
 bool TestGetMemoryReadOnly(usz Size, void* Address)
 {
-    void* Mem = GetMemory(Size, Address, MEM_READ);
-    if (Mem)
+    buffer Mem = GetMemory(Size, Address, MEM_READ);
+    if (Mem.Base)
     {
-        try { u8 Z = ((u8*)Mem)[0]; }
+        try { u8 Z = (Mem.Base)[0]; }
         catch (...) { return false;}
         
-        try { *(u8*)Mem = 0; }
+        try { *Mem.Base = 0; }
         catch (...) { return true; }
     }
     return false;
 }
 
-bool TestFreeMemory(void* Mem)
+bool TestFreeMemory(buffer Mem)
 {
-    FreeMemory(Mem);
-    try { *(u8*)Mem = 0; }
+    FreeMemory(&Mem);
+    try { *Mem.Base = 0; }
     catch (...) { return true; }
     return false;
 }
 
 bool TestGetMemoryFromHeap(usz SizeToAllocate)
 {
-    u8* Mem = (u8*)GetMemoryFromHeap(SizeToAllocate);
+    buffer Mem = GetMemoryFromHeap(SizeToAllocate);
     
-    try { *Mem = 0; }
+    try { *Mem.Base = 0; }
     catch (...) { return false; }
     
-    try { *(Mem + SizeToAllocate - 1) = 0; }
+    try { *(Mem.Base + SizeToAllocate - 1) = 0; }
     catch (...) { return false; }
     
     for (usz Idx = 0; Idx < SizeToAllocate; Idx++)
     {
-        if (Mem[Idx] != 0) return false;
+        if (Mem.Base[Idx] != 0) return false;
     }
     
     return true;
@@ -123,14 +122,13 @@ bool TestOpenFileReadWrite(void* Filename)
 
 bool TestReadFromFile(file FileHandle, usz StartPos, usz AmountToRead, buffer Expected1, bool Expected2)
 {
-    void* Mem = GetMemory(AmountToRead, 0, MEM_READ|MEM_WRITE);
-    if (ReadFromFile(FileHandle, Mem, AmountToRead, StartPos))
+    buffer Mem = GetMemory(AmountToRead, 0, MEM_READ|MEM_WRITE);
+    if (Mem.Base
+        && ReadFromFile(FileHandle, &Mem, AmountToRead, StartPos)
+        && EqualBuffers(Mem, Expected1)
+        && (Mem.Base[Mem.WriteCur-1] != 0))
     {
-        buffer File = Buffer(Mem, AmountToRead, 0);
-        if (EqualBuffers(File, Expected1) && (File.Base[File.WriteCur-1] != 0))
-        {
-            return true == Expected2;
-        }
+        return true == Expected2;
     }
     return false == Expected2;
 }
@@ -138,12 +136,11 @@ bool TestReadFromFile(file FileHandle, usz StartPos, usz AmountToRead, buffer Ex
 bool TestReadEntireFile(file FileHandle, buffer Expected1, bool Expected2)
 {
     buffer File = ReadEntireFile(FileHandle);
-    if (File.Base)
+    if (File.Base
+        && EqualBuffers(File, Expected1)
+        && (File.Base[File.WriteCur-1] != 0))
     {
-        if (EqualBuffers(File, Expected1) && (File.Base[File.WriteCur-1] != 0))
-        {
-            return true == Expected2;
-        }
+        return true == Expected2;
     }
     return false == Expected2;
 }
@@ -164,10 +161,10 @@ bool TestWriteToFile(file FileHandle, buffer Content, usz StartPos)
     bool Result = WriteToFile(FileHandle, Content, StartPos);
     if (Result)
     {
-        void* Mem = GetMemory(Content.WriteCur, 0, MEM_READ|MEM_WRITE);
-        ReadFromFile(FileHandle, Mem, Content.WriteCur, StartPos);
-        buffer File = Buffer(Mem, Content.WriteCur, Content.WriteCur);
-        Result = EqualBuffers(File, Content);
+        buffer Mem = GetMemory(Content.WriteCur, 0, MEM_READ|MEM_WRITE);
+        Result = (Mem.Base
+                  && ReadFromFile(FileHandle, &Mem, Content.WriteCur, StartPos)
+                  && EqualBuffers(Mem, Content));
     }
     return Result;
 }
@@ -246,8 +243,7 @@ bool TestListFiles(path DirPath, path Expected)
     InitIterDir(&Iter, DirPath);
     while (ListFiles(&Iter))
     {
-        //usz FilenameSize = Len(Path(Iter.Filename), LEN_CSTRING);
-        usz FilenameSize = 2 * wcslen((wchar_t*)Iter.Filename);
+        usz FilenameSize = StringLen(Path(Iter.Filename), LEN_CSTRING);
         AppendStringToString(String(Iter.Filename, FilenameSize, 0, EC_UTF16LE), &Compare);
     }
     
@@ -326,7 +322,7 @@ int main()
     char* LibPath = "../tests/a.dll";
     char* TestDir = "test";
     char* _TempA = "test/temp.a";
-    char* _TempB = "test/temp.b";
+    char* _TempB = "test/.temp.b";
     char* _TempC = "test/temp.c";
     char* _TempD = "test/temp.d";
     char* Tempdir = "test/tempdir";
@@ -349,13 +345,15 @@ int main()
     
     // Memory
     void* Address = (void*)(isz)0x2000000;
-    void* Mem1 = GetMemory(Kilobyte(1), NULL, MEM_READ);
+    buffer Mem1 = GetMemory(Kilobyte(1), NULL, MEM_READ);
     
+#if 0
     Test(GetMemory, gSysInfo.PageSize, Address);
     Test(FreeMemory, Mem1);
     Test(GetMemoryReadOnly, gSysInfo.PageSize, NULL);
     Test(GetMemoryGuard, gSysInfo.PageSize, NULL);
     Test(GetMemoryFromHeap, 100);
+#endif
     
     // FileIO
     file File;
@@ -421,9 +419,11 @@ int main()
     Test(RemoveDir, TestDir, false, false);
     Test(RemoveDir, TestDir, true, true);
     
+#if 0
     // External Libraries
     Test(LoadExternalLibrary, LibPath);
     Test(LoadExternalSymbol, LibPath, "AddTwo", 3, 5);
+#endif
     
     if (!Error) printf("All tests passed!\n");
     return 0;

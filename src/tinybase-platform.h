@@ -122,14 +122,14 @@ external buffer ReadEntireFile(file File);
 |  access, and copies entire file content to it.
 |--- Return: buffer with memory if successful, or empty buffer if not. */
 
-external b32 ReadFromFile(file File, void* Dst, usz AmountToRead, usz StartPos);
+external b32 ReadFromFile(file File, buffer* Dst, usz AmountToRead, usz StartPos);
 
 /* Copies [AmountToRead] bytes from [File] at [StartPos] offset into [Dst]
 |  memory. Memory must already be allocated. If [StartPos] + [AmountToRead]
 |  goes beyond EOF, nothing is copied and function fails.
  |--- Return: 1 if read operation was successfully started, or 0 if not. */
 
-external b32 ReadFileAsync(file File, void* Dst, usz AmountToRead, async* Async);
+external b32 ReadFileAsync(file File, buffer* Dst, usz AmountToRead, async* Async);
 
 /* Reads file in non-blocking manner. Memory must already be allocated and
 |  passed at [Dst], with at least [AmountToRead] size. Platform-specific
@@ -497,6 +497,8 @@ external void* AtomicExchangePtr(void* volatile* Dst, void* Value);
 #if !defined(TT_STATIC_LINKING)
 #if defined(TT_WINDOWS)
 #include "tinybase-platform-win32.c"
+#elif defined(TT_LINUX)
+#include "tinybase-platform-linux.c"
 #endif //TT_WINDOWS
 #endif //TT_STATIC_LINKING
 

@@ -7,6 +7,7 @@
 //=========================================================================
 #define TINYBASE_TYPES_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <float.h>
 
@@ -23,6 +24,7 @@
 #define TT_LINUX
 #define MAX_PATH_SIZE 4096
 #define INVALID_FILE USZ_MAX
+#define ASYNC_DATA_SIZE 40 // TODO: change.
 #else
 // Reserved for other platforms.
 #endif //_WIN32
@@ -39,12 +41,12 @@
 // Architecture defines
 //==================================
 
-#if defined(_M_AMD64) || defined(__X86_64__)
+#if defined(_M_AMD64) || defined(__amd64__)
 #define TT_X64
 #if defined(TT_WINDOWS)
 #include <intrin.h>
 #else
-// Reserved for other platforms.
+#include <x86intrin.h>
 #endif //TT_WINDOWS
 #define XMM128_SIZE 0x10
 #define XMM128_LAST_IDX 0xF

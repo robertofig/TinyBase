@@ -200,16 +200,15 @@ SeekFile(file File, usz Pos)
 }
 
 external b32
-ReadFromFile(file File, void* Dst, usz AmountToRead, usz StartPos)
+ReadFromFile(file File, buffer* Dst, usz AmountToRead, usz StartPos)
 {
-    b32 Result = false;
-    
     usz FileSize = FileSizeOf(File);
-    if (StartPos + AmountToRead <= FileSize)
+    if ((StartPos + AmountToRead) <= FileSize
+        && AmountToRead <= (Dst->Size - Dst->WriteCur))
     {
         SeekFile(File, StartPos);
         usz RemainsToRead = AmountToRead;
-        u8* Ptr = (u8*)Dst;
+        u8* Ptr = Dst->Base + Dst->WriteCur;
         while (RemainsToRead > 0)
         {
             DWORD ReadSize = (RemainsToRead > U32_MAX) ? U32_MAX : (DWORD)RemainsToRead;
@@ -221,10 +220,10 @@ ReadFromFile(file File, void* Dst, usz AmountToRead, usz StartPos)
             RemainsToRead -= BytesRead;
             Ptr += BytesRead;
         }
-        Result = true;
+        Dst->WriteCur += AmountToRead;
+        return true;
     }
-    
-    return Result;
+    return false;
 }
 
 external buffer
@@ -234,7 +233,7 @@ ReadEntireFile(file File)
     buffer Mem = GetMemory(FileSize, 0, MEM_READ|MEM_WRITE);
     if (Mem.Base)
     {
-        if (ReadFromFile(File, Mem.Base, FileSize, 0))
+        if (ReadFromFile(File, &Mem, FileSize, 0))
         {
             Mem.WriteCur = FileSize;
         }
@@ -247,28 +246,32 @@ ReadEntireFile(file File)
 }
 
 external b32
-ReadFileAsync(file File, void* Dst, usz AmountToRead, async* Async)
+ReadFileAsync(file File, buffer* Dst, usz AmountToRead, async* Async)
 {
-    OVERLAPPED* Overlapped = (OVERLAPPED*)&Async->Data;
-    
-    usz ReadChunk = Min(AmountToRead, U32_MAX);
-    u8* Ptr = (u8*)Dst;
-    for (usz AmountRead = 0; AmountRead < AmountToRead; )
+    if (AmountToRead <= (Dst->Size - Dst->WriteCur))
     {
-        DWORD BytesToRead = (DWORD)Min(AmountToRead - AmountRead, ReadChunk);
-        DWORD BytesRead = 0;
-        if (!ReadFile((HANDLE)File, Ptr, BytesToRead, &BytesRead, Overlapped)
-            && GetLastError() != ERROR_IO_PENDING)
+        OVERLAPPED* Overlapped = (OVERLAPPED*)&Async->Data;
+        
+        usz ReadChunk = Min(AmountToRead, U32_MAX);
+        u8* Ptr = Dst->Base + Dst->WriteCur;
+        for (usz AmountRead = 0; AmountRead < AmountToRead; )
         {
-            return false;
+            DWORD BytesToRead = (DWORD)Min(AmountToRead - AmountRead, ReadChunk);
+            DWORD BytesRead = 0;
+            if (!ReadFile((HANDLE)File, Ptr, BytesToRead, &BytesRead, Overlapped)
+                && GetLastError() != ERROR_IO_PENDING)
+            {
+                return false;
+            }
+            Ptr += BytesToRead;
+            AmountRead += BytesToRead;
+            Overlapped->Offset = AmountRead & 0xFFFFFFFF;
+            Overlapped->OffsetHigh = (AmountRead >> 32) & 0xFFFFFFFF;
         }
-        Ptr += BytesToRead;
-        AmountRead += BytesToRead;
-        Overlapped->Offset = AmountRead & 0xFFFFFFFF;
-        Overlapped->OffsetHigh = (AmountRead >> 32) & 0xFFFFFFFF;
+        Dst->WriteCur += AmountToRead;
+        return true;
     }
-    
-    return true;
+    return false;
 }
 
 external b32
@@ -453,7 +456,6 @@ PathLit(void* CString)
     {
         Result.Base = (char*)CString;
         Result.WriteCur = CStringSize;
-        Result.Size = CStringSize;
     }
     return Result;
 }

@@ -1,14 +1,13 @@
 #include "tinybase-memory.h"
 
 #include <stdio.h>
-#include <varargs.h>
 
 bool Error = false;
 #define Test(Callback, ...) \
 do { \
 if (!Test##Callback(__VA_ARGS__)) { \
 Error = true; \
-printf(" [%3d] %-40s ERRO.\n", __LINE__, #Callback##"()"); } \
+printf(" [%3d] %-40s ERRO.\n", __LINE__, #Callback"()"); } \
 } while (0); \
 
 
@@ -224,7 +223,7 @@ bool TestCompareBool(buffer A, buffer B, usz AmountToCompare, usz Expected)
     return Expected == CompareBuffers(A, B, AmountToCompare, RETURN_BOOL);
 }
 
-bool TestEquals(buffer A, buffer B, usz Expected)
+bool TestEquals(buffer A, buffer B, b32 Expected)
 {
     return Expected == EqualBuffers(A, B);
 }

@@ -573,7 +573,6 @@ _BufferInBufferIdxAVX2(buffer Needle, buffer Haystack)
         if (Needle.WriteCur >= XMM128_SIZE)
         {
             __m128i NeedleChunk = _mm_loadu_si128((__m128i*)Needle.Base);
-            usz NeedleChunkSize = XMM128_SIZE;
             while (HaystackRemaining >= XMM128_SIZE)
             {
                 __m128i HaystackChunk = _mm_loadu_si128((__m128i*)HaystackPtr);
