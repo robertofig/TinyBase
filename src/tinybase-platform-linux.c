@@ -102,21 +102,21 @@ FreeMemoryFromHeap(buffer* Mem)
 internal file
 _NewFile(void* Filename, b32 IsCreate, i32 Flags)
 {
-    int OpenFlags = 0, Mode = 0;
+    int OpenOpts = 0, Mode = 0;
     if (IsCreate)
     {
-        OpenFlags |= O_CREAT;
-        OpenFlags |= (OpenFlags & FORCE_CREATE) ? O_TRUNC : O_EXCL;
+        OpenOpts |= O_CREAT;
+        OpenOpts |= (Flags & FORCE_CREATE) ? O_TRUNC : O_EXCL;
         Mode = S_IRUSR|S_IWUSR;
     }
     bool Read = (Flags & (READ_SOLO|READ_SHARE)) > 0;
     bool Write = (Flags & (WRITE_SOLO|WRITE_SHARE)) > 0;
     
-    if (Read && Write) OpenFlags |= O_RDWR;
-    else if (Read) OpenFlags |= O_RDONLY;
-    else if (Write) OpenFlags |= O_WRONLY;
-    if (Flags & APPEND_FILE) OpenFlags |= O_APPEND;
-    if (Flags & ASYNC_FILE) OpenFlags |= (O_ASYNC|O_NONBLOCK);
+    if (Read && Write) OpenOpts |= O_RDWR;
+    else if (Read) OpenOpts |= O_RDONLY;
+    else if (Write) OpenOpts |= O_WRONLY;
+    if (Flags & APPEND_FILE) OpenOpts |= O_APPEND;
+    if (Flags & ASYNC_FILE) OpenOpts |= (O_ASYNC|O_NONBLOCK);
     
     char NewBuf[MAX_PATH_SIZE];
     if (Flags & HIDDEN_FILE)
@@ -140,7 +140,7 @@ _NewFile(void* Filename, b32 IsCreate, i32 Flags)
         Filename = (void*)NewBuf;
     }
     
-    file File = open(Filename, OpenFlags, Mode);
+    file File = open(Filename, OpenOpts, Mode);
     return File;
 }
 
@@ -318,8 +318,11 @@ DuplicateFile(void* SrcPath, void* DstPath, bool OverwriteIfExists)
         {
             usz Size = FileSizeOf(SrcFile);
             ssize_t BytesWritten = copy_file_range(SrcFile, 0, DstFile, 0, Size, 0);
+            CloseFileHandle(SrcFile);
+            CloseFileHandle(DstFile);
             return (BytesWritten == Size);
         }
+        CloseFileHandle(SrcFile);
         
         if (errno == EEXIST) return 4;
         if (errno == ENOTDIR) return 3;
@@ -374,7 +377,7 @@ IsExistingDir(void* Filepath)
 {
     struct stat PathStat;
     stat(Filepath, &PathStat);
-    return S_ISREG(PathStat.st_mode);
+    return S_ISDIR(PathStat.st_mode);
 }
 
 external path
@@ -597,10 +600,16 @@ ListFiles(iter_dir* Iter)
     }
     
     while (!readdir_r(*Dir, Entry, EntryPtr)
-           && EntryPtr)
+           && *EntryPtr)
     {
-        if (Entry->d_reclen == 1 && Entry->d_name[0] == '.') continue;
-        if (Entry->d_reclen == 2 && Entry->d_name[0] == '.' && Entry->d_name[1] == '.') continue;
+        if (Entry->d_name[0] == '.')
+        {
+            if (Entry->d_name[1] == 0
+                || (Entry->d_name[1] == '.' && Entry->d_name[2] == 0))
+            {
+                continue;
+            }
+        }
         
         Iter->Filename = Entry->d_name;
         Iter->IsDir = Entry->d_type & DT_DIR;
@@ -625,24 +634,13 @@ RemoveDir(void* DirPath, bool RemoveAllFiles)
         while (ListFiles(&Iter))
         {
             path ScratchPath = Iter.AllFiles;
-            MoveUpPath(&ScratchPath, 1);
             path Filename = PathLit(Iter.Filename);
             AppendPathToPath(Filename, &ScratchPath);
             
-            if (Iter.IsDir)
-            {
-                if (!RemoveDir(ScratchPath.Base, true))
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if (!RemoveFile(ScratchPath.Base))
-                {
-                    return false;
-                }
-            }
+            b32 Result = (Iter.IsDir) ? RemoveDir(ScratchPath.Base, true) : RemoveFile(ScratchPath.Base);
+            MoveUpPath(&ScratchPath, 1);
+            
+            if (!Result) return false;
         }
     }
     return !rmdir((const char*)DirPath);
