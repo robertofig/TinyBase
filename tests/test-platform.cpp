@@ -237,17 +237,44 @@ bool TestMoveUpPath(path* Path, usz MoveUpCount, path Expected)
 bool TestListFiles(path DirPath, path Expected)
 {
     char CompareBuf[2048] = {0};
-    string Compare = String(CompareBuf, 0, sizeof(CompareBuf), EC_UTF16LE);
+    path Compare = String(CompareBuf, 0, sizeof(CompareBuf), Expected.Enc);
     
     iter_dir Iter = {0};
     InitIterDir(&Iter, DirPath);
     while (ListFiles(&Iter))
     {
         usz FilenameSize = StringLen(Path(Iter.Filename), LEN_CSTRING);
-        AppendStringToString(String(Iter.Filename, FilenameSize, 0, EC_UTF16LE), &Compare);
+        AppendStringToString(String(Iter.Filename, FilenameSize, 0, Compare.Enc), &Compare);
+        AppendCharToString(';', &Compare);
     }
     
-    return EqualStrings(Compare, Expected);
+    int FileEqual = 0, FileCount = 0, ExpCount = CountCharInString(';', Expected);
+    for (usz CmpToken = 0
+         ; (CmpToken = CharInString(';', Compare, RETURN_IDX_FIND)) != INVALID_IDX
+         ; FileCount++)
+    {
+        string CompareFile = Compare;
+        CompareFile.WriteCur = CmpToken;
+        string Verify = Expected;
+        for (usz VerToken = 0
+             ; (VerToken = CharInString(';', Verify, RETURN_IDX_FIND)) != INVALID_IDX
+             ; )
+        {
+            string VerifyFile = Verify;
+            VerifyFile.WriteCur = VerToken;
+            if (EqualStrings(CompareFile, VerifyFile))
+            {
+                FileEqual++;
+                break;
+            }
+            AdvanceBuffer(&Verify.Buffer, VerToken);
+            AdvanceString(&Verify, 1);
+        }
+        AdvanceBuffer(&Compare.Buffer, CmpToken);
+        AdvanceString(&Compare, 1);
+    }
+    
+    return (FileCount == ExpCount && FileCount == FileEqual);
 }
 
 bool TestRemoveDir(void* Path, bool RemoveAllFiles, b32 Expected)
@@ -294,7 +321,7 @@ int main()
     LoadSystemInfo();
     
 #if defined(TT_WINDOWS)
-    wchar_t* LibPath = L"..\\tests\\a.dll";
+    wchar_t* LibPath = L".\\a.dll";
     wchar_t* TestDir = L"test";
     wchar_t* _TempA = L"test\\temp.a";
     wchar_t* _TempB = L"test\\temp.b";
@@ -306,7 +333,7 @@ int main()
     wchar_t* TempdirDir1Dir2 = L"test\\tempdir\\dir1\\dir2";
     wchar_t* TempdirDir2 = L"test\\tempdir\\dir2";
     wchar_t* Tempdir2 = L"test\\tempdir2";
-    wchar_t* CompareListDir = L"temp.btemp.ctempdir";
+    wchar_t* CompareListDir = L"temp.b;temp.c;tempdir;";
     wchar_t* Dir1Lit = L"dir1";
     wchar_t* Dir2Lit = L"dir2";
     wchar_t* EmptyLit = L"";
@@ -319,7 +346,7 @@ int main()
 #define __VFILE__ VF1(__FILE__)
     
 #else
-    char* LibPath = "../tests/a.dll";
+    char* LibPath = "./add.so";
     char* TestDir = "test";
     char* _TempA = "test/temp.a";
     char* _TempB = "test/.temp.b";
@@ -331,7 +358,7 @@ int main()
     char* TempdirDir1Dir2 = "test/tempdir/dir1/dir2";
     char* TempdirDir2 = "test/tempdir/dir2";
     char* Tempdir2 = "test/tempdir2";
-    char* CompareListDir = "temp.btemp.ctempdir";
+    char* CompareListDir = ".temp.b;temp.c;tempdir;";
     char* Dir1Lit = "dir1";
     char* Dir2Lit = "dir2";
     char* EmptyLit = "";
@@ -419,11 +446,9 @@ int main()
     Test(RemoveDir, TestDir, false, false);
     Test(RemoveDir, TestDir, true, true);
     
-#if 0
     // External Libraries
     Test(LoadExternalLibrary, LibPath);
     Test(LoadExternalSymbol, LibPath, "AddTwo", 3, 5);
-#endif
     
     if (!Error) printf("All tests passed!\n");
     return 0;

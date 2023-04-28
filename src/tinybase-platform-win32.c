@@ -806,11 +806,10 @@ UnloadExternalLibrary(file Library)
 //========================================
 
 external file
-ThreadCreate(void* ThreadProc, void* ThreadArg, usz* ThreadId, bool CreateAndRun)
+ThreadCreate(void* ThreadProc, void* ThreadArg, int* ThreadId)
 {
-    DWORD Creation = !CreateAndRun * 4;
-    file Thread = (file)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ThreadProc, ThreadArg, Creation, (LPDWORD)ThreadId);
-    return Thread;
+    HANDLE Thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ThreadProc, ThreadArg, 0, ThreadId);
+    return (file)Thread;
 }
 
 external b32
@@ -837,23 +836,16 @@ ThreadGetScheduling(file Thread)
 }
 
 external void
-ThreadExit(isz ExitCode)
+ThreadInit(void)
 {
-    ExitThread((DWORD)ExitCode);
+    // Function does nothing on Windows.
+    return;
 }
 
-external b32
-ThreadSuspend(file Thread)
+external void
+ThreadClose(thread Thread)
 {
-    DWORD Result = SuspendThread((HANDLE)Thread);
-    return (Result >= 0) ? true : false;
-}
-
-external bool
-ThreadUnsuspend(file Thread)
-{
-    DWORD Result = ResumeThread((HANDLE)Thread);
-    return (Result >= 0) ? true : false;
+    TerminateThread((HANDLE)Thread.Handle, 0);
 }
 
 //========================================
@@ -863,27 +855,27 @@ ThreadUnsuspend(file Thread)
 external i16
 AtomicExchange16(void* volatile Dst, i16 Value)
 {
-    i32 Result = InterlockedExchange16((i16*)Dst, Value);
-    return Result;
+    i16 OldValue = InterlockedExchange16((i16*)Dst, Value);
+    return OldValue;
 }
 
 external i32
 AtomicExchange32(void* volatile Dst, i32 Value)
 {
-    i32 Result = InterlockedExchange((long*)Dst, (long)Value);
-    return Result;
+    i32 OldValue = InterlockedExchange((long*)Dst, (long)Value);
+    return OldValue;
 }
 
 external i64
 AtomicExchange64(void* volatile Dst, i64 Value)
 {
-    i64 Result = InterlockedExchange64((i64*)Dst, Value);
-    return Result;
+    i64 OldValue = InterlockedExchange64((i64*)Dst, Value);
+    return OldValue;
 }
 
 external void*
 AtomicExchangePtr(void* volatile* Dst, void* Value)
 {
-    void* Result = InterlockedExchangePointer(Dst, Value);
-    return Result;
+    void* OldValue = InterlockedExchangePointer(Dst, Value);
+    return OldValue;
 }

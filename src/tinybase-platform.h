@@ -428,44 +428,40 @@ external b32 UnloadExternalLibrary(file Library);
 // Threading
 //========================================
 
-#define SCHEDULE_NORMAL 1
-#define SCHEDULE_LOW    2
-#define SCHEDULE_HIGH   4
+#define SCHEDULE_UNKNOWN 0
+#define SCHEDULE_NORMAL  1
+#define SCHEDULE_LOW     2
+#define SCHEDULE_HIGH    4
 
-external file ThreadCreate(void* ThreadProc, void* ThreadArg, _opt usz* ThreadId, bool CreateAndRun);
+typedef struct thread
+{
+    file Handle;
+    u8* Stack;
+    u32 StackSize;
+} thread;
+
+external thread ThreadCreate(void* ThreadProc, void* ThreadArg);
 
 /* Creates a new thread. [ThreadProc] specifies the entry point, and should be a function
  |  that takes one void* as input parameter, and returns a void*. [ThreadArg] is the parameter
-|  passed to the function pointed to at [ThreadProc]. [ThreadId] is a pointer to an usz variable
-|  that received the thread id back (can be NULL). [CreateAndRun] determines if the thread
-|  if start suspended or not.
-|--- Return: file handle to thread, or NULL if creation failed. */
+|  passed to the function pointed to at [ThreadProc].
+|--- Return: thread object, or NULL if creation failed. */
 
-external b32 ThreadChangeScheduling(file Thread, int NewScheduling);
+external b32 ThreadChangeScheduling(thread Thread, int NewScheduling);
 
 /* Change how frequently [Thread] is awoken by the system. [NewScheduling] can either
  |  be SCHEDULE_NORMAL, SCHEDULE_LOW or SCHEDULE_HIGH.
 |--- Return: 1 if successful, 0 if not. */
 
-external i32 ThreadGetScheduling(file Thread);
+external i32 ThreadGetScheduling(thread Thread);
 
 /* Get current scheduling rule for [Thread]. Value can be SCHEDULE_NORMAL (1), SCHEDULE_LOW (2)
  |  or SCHEDULE_HIGH (4).
 |--- Return: number referring to thread schedule. */
 
-external b32 ThreadSuspend(file Thread);
+external void ThreadClose(thread Thread);
 
-/* Suspends thread at file handle [Thread].
-|--- Return: 1 if successful, 0 if not. */
-
-external bool ThreadUnsuspend(file Thread);
-
-/* Unsuspends thread at file handle [Thread].
-|--- Return: 1 if successful, 0 if not. */
-
-external void ThreadExit(isz ExitCode);
-
-/* Exits the thread that calls this function.
+/* .
  |--- Return: nothing. */
 
 

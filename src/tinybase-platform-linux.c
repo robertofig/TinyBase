@@ -1,6 +1,11 @@
+#define _GNU_SOURCE
+
+#include <dlfcn.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sched.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -24,7 +29,12 @@ LoadSystemInfo(void)
     gSysInfo.AddressRange[1] = SysInfo.totalram; // TODO: mmap_max_addr? 
     gSysInfo.MemBlockSize = gSysInfo.PageSize;
     gSysInfo.NumThreads = get_nprocs();
-    gSysInfo.TimingFreq = 1.0;
+    
+#if defined(CLOCK_BOOTTIME)
+    gSysInfo.TimingFreq = CLOCK_BOOTTIME;
+#else
+    gSysInfo.TimingFreq = CLOCK_MONOTONIC;
+#endif
     
     struct utsname OSInfo;
     uname(&OSInfo);
@@ -666,25 +676,40 @@ ChangeDirLocation(void* SrcPath, void* DstPath)
 external void
 StartTiming(timing* Info)
 {
-    return;
+    struct timespec Now;
+    clock_gettime(gSysInfo.TimingFreq, &Now);
+    Info->Start = (isz)Now.tv_sec * 1000000000 + (isz)Now.tv_nsec;
 }
 
 external void
 StopTiming(timing* Info)
 {
-    return;
+    struct timespec Now;
+    clock_gettime(gSysInfo.TimingFreq, &Now);
+    Info->End = (isz)Now.tv_sec * 1000000000 + (isz)Now.tv_nsec;
+    Info->Diff = (f64)(Info->Start - Info->End) / 1000000000;
 }
 
 external datetime
 CurrentSystemTime(void)
 {
-    return {0};
+    time_t Now = time(NULL);
+    struct tm DT = {0};
+    gmtime_r(&Now, &DT);
+    
+    datetime Result = { DT.tm_year+1900, DT.tm_mon+1, DT.tm_mday, DT.tm_hour, DT.tm_min, DT.tm_sec, (weekday)DT.tm_wday };
+    return Result;
 }
 
 external datetime
 CurrentLocalTime(void)
 {
-    return {0};
+    time_t Now = time(NULL);
+    struct tm DT = {0};
+    localtime_r(&Now, &DT);
+    
+    datetime Result = { DT.tm_year+1900, DT.tm_mon+1, DT.tm_mday, DT.tm_hour, DT.tm_min, DT.tm_sec, (weekday)DT.tm_wday };
+    return Result;
 }
 
 //========================================
@@ -694,59 +719,84 @@ CurrentLocalTime(void)
 external file
 LoadExternalLibrary(void* LibPath)
 {
-    return 0;
+    file Result = (file)dlopen((const char*)LibPath, RTLD_NOW);
+    return Result;
 }
 
 external void*
 LoadExternalSymbol(file Library, char* SymbolName)
 {
-    return 0;
+    void* Result = dlsym((void*)Library, SymbolName);
+    return Result;
 }
 
 external b32
 UnloadExternalLibrary(file Library)
 {
-    return 0;
+    b32 Result = !dlclose((void*)Library);
+    return Result;
 }
 
 //========================================
 // Threading
 //========================================
 
-external file
-ThreadCreate(void* ThreadProc, void* ThreadArg, usz* ThreadId, bool CreateAndRun)
+external thread
+ThreadCreate(void* ThreadProc, void* ThreadArg)
 {
-    return 0;
+    thread Result = {0};
+    
+    // OBS: the Megabyte(2) is the size of the stack; the extra pagesize is a memory
+    // guard at the end of it.
+    int StackSize = Megabyte(2) + gSysInfo.PageSize;
+    buffer Stack = GetMemory(StackSize, 0, MEM_WRITE);
+    if (Stack.Base)
+    {
+        mprotect(Stack.Base, gSysInfo.PageSize, PROT_NONE);
+        int Flags = CLONE_VM|CLONE_IO|CLONE_FILES|SIGCHLD;
+        int Thread = clone(ThreadProc, Stack.Base+StackSize, Flags, ThreadArg);
+        if (Thread != -1)
+        {
+            Result.Handle = Thread;
+            Result.Stack = Stack.Base;
+            Result.StackSize = StackSize;
+        }
+        else
+        {
+            FreeMemory(&Stack);
+        }
+    }
+    
+    return Result;
 }
 
 external b32
-ThreadChangeScheduling(file Thread, int NewScheduling)
+ThreadChangeScheduling(thread Thread, int NewScheduling)
 {
-    return 0;
+    int Policy = (NewScheduling == SCHEDULE_HIGH) ? SCHED_BATCH
+        : (NewScheduling == SCHEDULE_LOW) ? SCHED_IDLE : SCHED_OTHER;
+    struct sched_param Param = {0};
+    
+    b32 Result = !sched_setscheduler((pid_t)Thread.Handle, Policy, &Param);
+    return Result;
 }
 
 external i32
-ThreadGetScheduling(file Thread)
+ThreadGetScheduling(thread Thread)
 {
-    return 0;
+    int Policy = sched_getscheduler((pid_t)Thread.Handle);
+    i32 Result = (Policy == SCHED_OTHER) ? SCHEDULE_NORMAL
+        : (Policy == SCHED_BATCH) ? SCHEDULE_HIGH
+        : (Policy == SCHED_IDLE) ? SCHEDULE_LOW : SCHEDULE_UNKNOWN;
+    return Result;
 }
 
 external void
-ThreadExit(isz ExitCode)
+ThreadClose(thread Thread)
 {
-    return;
-}
-
-external b32
-ThreadSuspend(file Thread)
-{
-    return 0;
-}
-
-external bool
-ThreadUnsuspend(file Thread)
-{
-    return 0;
+    kill((pid_t)Thread.Handle, SIGKILL);
+    buffer Stack = Buffer(Thread.Stack, 0, Thread.StackSize);
+    FreeMemory(&Stack);
 }
 
 //========================================
@@ -756,23 +806,27 @@ ThreadUnsuspend(file Thread)
 external i16
 AtomicExchange16(void* volatile Dst, i16 Value)
 {
-    return 0;
+    i16 OldValue = __atomic_exchange_n((i16*)Dst, Value, __ATOMIC_ACQ_REL);
+    return OldValue;
 }
 
 external i32
 AtomicExchange32(void* volatile Dst, i32 Value)
 {
-    return 0;
+    i32 OldValue = __atomic_exchange_n((i32*)Dst, Value, __ATOMIC_ACQ_REL);
+    return OldValue;
 }
 
 external i64
 AtomicExchange64(void* volatile Dst, i64 Value)
 {
-    return 0;
+    i64 OldValue = __atomic_exchange_n((i64*)Dst, Value, __ATOMIC_ACQ_REL);
+    return OldValue;
 }
 
 external void*
 AtomicExchangePtr(void* volatile* Dst, void* Value)
 {
-    return 0;
+    void* OldValue = __atomic_exchange_n(&Dst, Value, __ATOMIC_ACQ_REL);
+    return OldValue;
 }

@@ -333,7 +333,7 @@ StringToFloat(string Src)
 external usz
 CharInString(mb_char Needle, string Haystack, int Flags)
 {
-    // OBS: Assumes Needle is in the same encoding as Haystack.
+    // Assumes Needle is in the same encoding as Haystack.
     usz Result = INVALID_IDX;
     u32 NeedleSize = GetMultibyteCharSize(Needle, Haystack.Enc);
     if (NeedleSize == 1)
@@ -355,6 +355,20 @@ StringInString(string Needle, string Haystack, int Flags)
     if (Needle.Enc == Haystack.Enc)
     {
         Result = BufferInBuffer(Needle.Buffer, Haystack.Buffer, Flags);
+    }
+    return Result;
+}
+
+external usz
+CountCharInString(mb_char Needle, string Haystack)
+{
+    // Assumes Needle is in the same encoding as Haystack.
+    usz Result = 0;
+    for (usz Idx = 0
+         ; (Idx = CharInString(Needle, Haystack, RETURN_IDX_AFTER)) != INVALID_IDX
+         ; AdvanceString(&Haystack, Idx))
+    {
+        Result++;
     }
     return Result;
 }
@@ -487,6 +501,18 @@ ReplaceCharInString(mb_char Old, mb_char New, string A)
 //========================================
 // Write
 //========================================
+
+external void
+AdvanceString(string* Dst, usz NumChars)
+{
+    while (NumChars--)
+    {
+        u32 BytesToAdvance = GetNextCharSize(Dst->Base, Dst->Enc);
+        Dst->Base += BytesToAdvance;
+        Dst->WriteCur -= BytesToAdvance;
+        Dst->Size -= BytesToAdvance;
+    }
+}
 
 external b32
 AppendCharToString(mb_char Src, string* Dst)

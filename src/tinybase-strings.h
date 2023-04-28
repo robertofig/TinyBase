@@ -181,6 +181,11 @@ external usz StringInString(string Needle, string Haystack, int Flags);
 |  was found on offset 400, return is at 436).
 |--- Return: based on return type flag. */
 
+external usz CountCharInString(mb_char Needle, string Haystack);
+
+/* Counts number of multibyte char [Needle] in [Haystack].
+|--- Return: number of chars found in string. */
+
 external usz CompareStrings(string A, string B, usz AmountToCompare, int Flag);
 
 /* Compares two strings byte by byte for [AmountToCompare] bytes, until they differ, or
@@ -226,6 +231,12 @@ external b32 ReplaceCharInString(mb_char Old, mb_char New, string A);
 //========================================
 // Write
 //========================================
+
+external void AdvanceString(string* Dst, usz NumChars);
+
+/* Modifies [Dst] to advance its [.Base] by [NumChars], and shrink [.WriteCur]
+   |  and [.Size] by the same amount.
+ |--- Return: nothing. */
 
 external b32 AppendArrayToString(void* Src, string* Dst);
 
