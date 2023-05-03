@@ -796,6 +796,7 @@ external void
 ThreadClose(thread Thread)
 {
     kill((pid_t)Thread.Handle, SIGKILL);
+    waitpid((pid_t)Thread.Handle, 0, 0);
     buffer Stack = Buffer(Thread.Stack, 0, Thread.StackSize);
     FreeMemory(&Stack);
 }
