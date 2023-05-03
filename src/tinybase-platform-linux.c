@@ -748,7 +748,7 @@ ThreadCreate(void* ThreadProc, void* ThreadArg)
     
     // OBS: the Megabyte(2) is the size of the stack; the extra pagesize is a memory
     // guard at the end of it.
-    int StackSize = Megabyte(2) + gSysInfo.PageSize;
+    int StackSize = Megabyte(1) + gSysInfo.PageSize;
     buffer Stack = GetMemory(StackSize, 0, MEM_WRITE);
     if (Stack.Base)
     {
@@ -757,7 +757,7 @@ ThreadCreate(void* ThreadProc, void* ThreadArg)
         int Thread = clone(ThreadProc, Stack.Base+StackSize, Flags, ThreadArg);
         if (Thread != -1)
         {
-            Result.Handle = Thread;
+            Result.Handle = (file)Thread;
             Result.Stack = Stack.Base;
             Result.StackSize = StackSize;
         }
@@ -773,21 +773,22 @@ ThreadCreate(void* ThreadProc, void* ThreadArg)
 external b32
 ThreadChangeScheduling(thread Thread, int NewScheduling)
 {
-    int Policy = (NewScheduling == SCHEDULE_HIGH) ? SCHED_BATCH
-        : (NewScheduling == SCHEDULE_LOW) ? SCHED_IDLE : SCHED_OTHER;
-    struct sched_param Param = {0};
-    
-    b32 Result = !sched_setscheduler((pid_t)Thread.Handle, Policy, &Param);
-    return Result;
+    int Priority;
+    switch (NewScheduling)
+    {
+        case SCHEDULE_HIGH: Priority = -20; break;
+        case SCHEDULE_LOW: Priority = 19; break;
+        default: Priority = 0;
+    }
+    int Error = setpriority(PRIO_PROCESS, (int)Thread.Handle, Priority);
+    return !Error;
 }
 
 external i32
 ThreadGetScheduling(thread Thread)
 {
-    int Policy = sched_getscheduler((pid_t)Thread.Handle);
-    i32 Result = (Policy == SCHED_OTHER) ? SCHEDULE_NORMAL
-        : (Policy == SCHED_BATCH) ? SCHEDULE_HIGH
-        : (Policy == SCHED_IDLE) ? SCHEDULE_LOW : SCHEDULE_UNKNOWN;
+    int Priority = getpriority(PRIO_PROCESS, (int)Thread.Handle);
+    i32 Result = (Priority >= 7) ? SCHEDULE_LOW : (Priority < -7) ? SCHEDULE_HIGH : SCHEDULE_NORMAL;
     return Result;
 }
 

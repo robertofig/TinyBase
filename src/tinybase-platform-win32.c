@@ -805,24 +805,25 @@ UnloadExternalLibrary(file Library)
 // Threading
 //========================================
 
-external file
-ThreadCreate(void* ThreadProc, void* ThreadArg, int* ThreadId)
+external thread
+ThreadCreate(void* ThreadProc, void* ThreadArg)
 {
-    HANDLE Thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ThreadProc, ThreadArg, 0, ThreadId);
-    return (file)Thread;
+    thread Result = { 0, 0, Megabyte(1) };
+    Result.Handle= (file)CreateThread(NULL, Result.StackSize, (LPTHREAD_START_ROUTINE)ThreadProc, ThreadArg, 0, 0);
+    return Result;
 }
 
 external b32
-ThreadChangeScheduling(file Thread, int NewScheduling)
+ThreadChangeScheduling(thread Thread, int NewScheduling)
 {
     DWORD Priority = NewScheduling * NORMAL_PRIORITY_CLASS;
-    return SetPriorityClass((HANDLE)Thread, Priority);
+    return SetPriorityClass((HANDLE)Thread.Handle, Priority);
 }
 
 external i32
-ThreadGetScheduling(file Thread)
+ThreadGetScheduling(thread Thread)
 {
-    switch (GetPriorityClass((HANDLE)Thread))
+    switch (GetPriorityClass((HANDLE)Thread.Handle))
     {
         case ABOVE_NORMAL_PRIORITY_CLASS:
         case HIGH_PRIORITY_CLASS:
@@ -833,13 +834,6 @@ ThreadGetScheduling(file Thread)
         
         default:                      return SCHEDULE_NORMAL;
     }
-}
-
-external void
-ThreadInit(void)
-{
-    // Function does nothing on Windows.
-    return;
 }
 
 external void

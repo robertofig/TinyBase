@@ -461,7 +461,8 @@ external i32 ThreadGetScheduling(thread Thread);
 
 external void ThreadClose(thread Thread);
 
-/* .
+/* Cleans up thread, after it has finished running. Can also be called while it is
+|  running to abort it prematurely. Failure to call it may result in memory leaks.
  |--- Return: nothing. */
 
 
