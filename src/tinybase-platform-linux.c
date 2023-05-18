@@ -4,14 +4,18 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -327,7 +331,7 @@ DuplicateFile(void* SrcPath, void* DstPath, bool OverwriteIfExists)
         if (DstFile != INVALID_FILE)
         {
             usz Size = FileSizeOf(SrcFile);
-            ssize_t BytesWritten = copy_file_range(SrcFile, 0, DstFile, 0, Size, 0);
+            ssize_t BytesWritten = syscall(SYS_copy_file_range, (int)SrcFile, 0, (int)DstFile, 0, Size, 0);
             CloseFileHandle(SrcFile);
             CloseFileHandle(DstFile);
             return (BytesWritten == Size);
@@ -598,16 +602,19 @@ InitIterDir(iter_dir* Iter, path DirPath)
     AppendStringToString(DirPath, &Iter->AllFiles);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 external b32
 ListFiles(iter_dir* Iter)
 {
     DIR** Dir = (DIR**)&Iter->OSData[0];
-    struct dirent** EntryPtr = (struct dirent**)&Dir[1];
-    struct dirent* Entry = (struct dirent*)&EntryPtr[1];
     if (*Dir == 0)
     {
         *Dir = opendir(Iter->AllFilesBuf);
     }
+    struct dirent** EntryPtr = (struct dirent**)&Dir[1];
+    struct dirent* Entry = (struct dirent*)&EntryPtr[1];
     
     while (!readdir_r(*Dir, Entry, EntryPtr)
            && *EntryPtr)
@@ -630,6 +637,8 @@ ListFiles(iter_dir* Iter)
     *Dir = 0;
     return false;
 }
+
+#pragma GCC diagnostic pop
 
 external b32
 RemoveDir(void* DirPath, bool RemoveAllFiles)
@@ -741,37 +750,44 @@ UnloadExternalLibrary(file Library)
 // Threading
 //========================================
 
+// TODO: Change method for getting tid to something more reliable.
+pid_t _GetThreadID(file ThreadHandle)
+{
+    // This struct is only to cast pthread_t and get the tid.
+    struct _pthread_hack_
+    {
+        u8 _Padding[720];
+        pid_t ThreadID;
+    };
+    
+    struct _pthread_hack_* PThread = (struct _pthread_hack_*)ThreadHandle;
+    pid_t TID = PThread->ThreadID;
+    
+    return TID;
+}
+
 external thread
-ThreadCreate(void* ThreadProc, void* ThreadArg)
+ThreadCreate(thread_proc ThreadProc, void* ThreadArg, b32 Waitable)
 {
     thread Result = {0};
     
-    // OBS: the Megabyte(2) is the size of the stack; the extra pagesize is a memory
-    // guard at the end of it.
-    int StackSize = Megabyte(1) + gSysInfo.PageSize;
-    buffer Stack = GetMemory(StackSize, 0, MEM_WRITE);
-    if (Stack.Base)
+    int Detach = (Waitable) ? PTHREAD_CREATE_JOINABLE : PTHREAD_CREATE_DETACHED;
+    pthread_attr_t Attr = {0};
+    pthread_t Thread = 0;
+    if (!pthread_attr_init(&Attr)
+        && !pthread_attr_setdetachstate(&Attr, Detach)
+        && !pthread_attr_setguardsize(&Attr, gSysInfo.PageSize)
+        && !pthread_attr_setstacksize(&Attr, Megabyte(2))
+        && !pthread_create(&Thread, &Attr, ThreadProc, ThreadArg))
     {
-        mprotect(Stack.Base, gSysInfo.PageSize, PROT_NONE);
-        int Flags = CLONE_VM|CLONE_IO|CLONE_FILES|SIGCHLD;
-        int Thread = clone(ThreadProc, Stack.Base+StackSize, Flags, ThreadArg);
-        if (Thread != -1)
-        {
-            Result.Handle = (file)Thread;
-            Result.Stack = Stack.Base;
-            Result.StackSize = StackSize;
-        }
-        else
-        {
-            FreeMemory(&Stack);
-        }
+        Result.Handle = (file)Thread;
     }
     
     return Result;
 }
 
 external b32
-ThreadChangeScheduling(thread Thread, int NewScheduling)
+ThreadChangeScheduling(thread* Thread, int NewScheduling)
 {
     int Priority;
     switch (NewScheduling)
@@ -780,25 +796,46 @@ ThreadChangeScheduling(thread Thread, int NewScheduling)
         case SCHEDULE_LOW: Priority = 19; break;
         default: Priority = 0;
     }
-    int Error = setpriority(PRIO_PROCESS, (int)Thread.Handle, Priority);
+    int Error = setpriority(PRIO_PROCESS, _GetThreadID(Thread->Handle), Priority);
     return !Error;
 }
 
 external i32
 ThreadGetScheduling(thread Thread)
 {
-    int Priority = getpriority(PRIO_PROCESS, (int)Thread.Handle);
+    int Priority = getpriority(PRIO_PROCESS, _GetThreadID(Thread.Handle));
     i32 Result = (Priority >= 7) ? SCHEDULE_LOW : (Priority < -7) ? SCHEDULE_HIGH : SCHEDULE_NORMAL;
     return Result;
 }
 
-external void
-ThreadClose(thread Thread)
+external b32
+ThreadClose(thread* Thread)
 {
-    kill((pid_t)Thread.Handle, SIGKILL);
-    waitpid((pid_t)Thread.Handle, 0, 0);
-    buffer Stack = Buffer(Thread.Stack, 0, Thread.StackSize);
-    FreeMemory(&Stack);
+    // Function currently is a stub, to be expanded in the future.
+    Thread->Handle = 0;
+    return 1;
+}
+
+external b32
+ThreadWait(thread* Thread)
+{
+    if (!pthread_join((pthread_t)Thread->Handle, 0))
+    {
+        ThreadClose(Thread);
+        return 1;
+    }
+    return 0;
+}
+
+external b32
+ThreadKill(thread* Thread)
+{
+    if (!pthread_kill((pthread_t)Thread->Handle, SIGKILL))
+    {
+        ThreadClose(Thread);
+        return 1;
+    }
+    return 0;
 }
 
 //========================================
@@ -829,6 +866,6 @@ AtomicExchange64(void* volatile Dst, i64 Value)
 external void*
 AtomicExchangePtr(void* volatile* Dst, void* Value)
 {
-    void* OldValue = __atomic_exchange_n(&Dst, Value, __ATOMIC_ACQ_REL);
+    void* OldValue = __atomic_exchange_n(Dst, Value, __ATOMIC_ACQ_REL);
     return OldValue;
 }

@@ -436,18 +436,29 @@ external b32 UnloadExternalLibrary(file Library);
 typedef struct thread
 {
     file Handle;
-    u8* Stack;
-    u32 StackSize;
+    // Space reserved for expansion.
 } thread;
 
-external thread ThreadCreate(void* ThreadProc, void* ThreadArg);
+#if defined(TT_WINDOWS)
+# define THREAD_PROC(Name) u32 Name(void* Arg)
+typedef u32 (*thread_proc)(void*);
+#elif defined(TT_LINUX)
+# define THREAD_PROC(Name) void* Name(void* Arg)
+typedef void* (*thread_proc)(void*);
+#else // Reserved for other platforms;
+#endif
+
+
+external thread ThreadCreate(thread_proc ThreadProc, void* ThreadArg, b32 Waitable);
 
 /* Creates a new thread. [ThreadProc] specifies the entry point, and should be a function
- |  that takes one void* as input parameter, and returns a void*. [ThreadArg] is the parameter
-|  passed to the function pointed to at [ThreadProc].
+ |  of type thread_proc. [ThreadArg] is the parameter passed to the function pointed to at
+ |  [ThreadProc]. [Waitable] determines how to close the thread; if 1, the parent thread
+ |  must wait on the child thread with ThreadWait() to close it; otherwise it must call
+|  ThreadClose() explicitly after it knows the thread has finished.
 |--- Return: thread object, or NULL if creation failed. */
 
-external b32 ThreadChangeScheduling(thread Thread, int NewScheduling);
+external b32 ThreadChangeScheduling(thread* Thread, int NewScheduling);
 
 /* Change how frequently [Thread] is awoken by the system. [NewScheduling] can either
  |  be SCHEDULE_NORMAL, SCHEDULE_LOW or SCHEDULE_HIGH.
@@ -455,15 +466,29 @@ external b32 ThreadChangeScheduling(thread Thread, int NewScheduling);
 
 external i32 ThreadGetScheduling(thread Thread);
 
-/* Get current scheduling rule for [Thread]. Value can be SCHEDULE_NORMAL (1), SCHEDULE_LOW (2)
- |  or SCHEDULE_HIGH (4).
+/* Get current scheduling rule for [Thread]. Value can be SCHEDULE_NORMAL (1),
+|  SCHEDULE_LOW (2) or SCHEDULE_HIGH (4).
 |--- Return: number referring to thread schedule. */
 
-external void ThreadClose(thread Thread);
+external b32 ThreadClose(thread* Thread);
 
-/* Cleans up thread, after it has finished running. Can also be called while it is
-|  running to abort it prematurely. Failure to call it may result in memory leaks.
- |--- Return: nothing. */
+/* Cleans up thread, after it has finished running. Must only be called on
+|  non-waitable threads. Failure to call it may result in memory leaks.
+ |--- Return: 1 if successful, 0 if not. */
+
+external b32 ThreadWait(thread* Thread);
+
+/* Waits on a thread created with Waitable status. This will block the calling thread
+ |  until [Thread] finishes running. If it has already finished, returns immediately.
+|  This also cleans up the thread, so no need to call ThreadClose().
+ |--- Return: 1 if successful, 0 if not. */
+
+external b32 ThreadKill(thread* Thread);
+
+/* Forcefully terminates the running thread, and cleans up its resources. Calling
+ |  this function on a thread that has already been closed may have unpredictable
+|  behaviour, and should be avoided.
+ |--- Return: 1 if successful, 0 if not. */
 
 
 //========================================
@@ -492,11 +517,11 @@ external void* AtomicExchangePtr(void* volatile* Dst, void* Value);
 
 
 #if !defined(TT_STATIC_LINKING)
-#if defined(TT_WINDOWS)
-#include "tinybase-platform-win32.c"
-#elif defined(TT_LINUX)
-#include "tinybase-platform-linux.c"
-#endif //TT_WINDOWS
+# if defined(TT_WINDOWS)
+#  include "tinybase-platform-win32.c"
+# elif defined(TT_LINUX)
+#  include "tinybase-platform-linux.c"
+# endif //TT_WINDOWS
 #endif //TT_STATIC_LINKING
 
 #endif //TINYBASE_PLATFORM_H

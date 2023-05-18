@@ -806,18 +806,19 @@ UnloadExternalLibrary(file Library)
 //========================================
 
 external thread
-ThreadCreate(void* ThreadProc, void* ThreadArg)
+ThreadCreate(thread_proc ThreadProc, void* ThreadArg, b32 Waitable)
 {
-    thread Result = { 0, 0, Megabyte(1) };
-    Result.Handle= (file)CreateThread(NULL, Result.StackSize, (LPTHREAD_START_ROUTINE)ThreadProc, ThreadArg, 0, 0);
+    // [Waitable] does nothing on Windows.
+    thread Result = {0};
+    Result.Handle = (file)CreateThread(NULL, Megabyte(2), (LPTHREAD_START_ROUTINE)ThreadProc, ThreadArg, 0, 0);
     return Result;
 }
 
 external b32
-ThreadChangeScheduling(thread Thread, int NewScheduling)
+ThreadChangeScheduling(thread* Thread, int NewScheduling)
 {
     DWORD Priority = NewScheduling * NORMAL_PRIORITY_CLASS;
-    return SetPriorityClass((HANDLE)Thread.Handle, Priority);
+    return SetPriorityClass((HANDLE)Thread->Handle, Priority);
 }
 
 external i32
@@ -832,14 +833,39 @@ ThreadGetScheduling(thread Thread)
         case BELOW_NORMAL_PRIORITY_CLASS:
         case IDLE_PRIORITY_CLASS:     return SCHEDULE_LOW;
         
-        default:                      return SCHEDULE_NORMAL;
+        case NORMAL_PRIORITY_CLASS:   return SCHEDULE_NORMAL;
+        default:                      return SCHEDULE_UNKNOWN;
     }
 }
 
-external void
-ThreadClose(thread Thread)
+external b32
+ThreadClose(thread* Thread)
 {
-    TerminateThread((HANDLE)Thread.Handle, 0);
+    // Function currently is a stub, to be expanded in the future.
+    CloseHandle((HANDLE)Thread->Handle);
+    return 1;
+}
+
+external b32
+ThreadWait(thread* Thread)
+{
+    if (WaitForSingleObject((HANDLE)Thread->Handle, INFINITE) != WAIT_FAILED)
+    {
+        ThreadClose(Thread);
+        return 1;
+    }
+    return 0;
+}
+
+external b32
+ThreadKill(thread* Thread)
+{
+    if (TerminateThread((HANDLE)Thread->Handle, 0))
+    {
+        ThreadClose(Thread);
+        return 1;
+    }
+    return 0;
 }
 
 //========================================
