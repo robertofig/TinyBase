@@ -94,7 +94,7 @@ typedef usz file;
 
 typedef struct async
 {
-    u8 Data[ASYNC_DATA_SIZE]; // OVERLAPPED on Windows.
+    u8 Data[ASYNC_DATA_SIZE];
 } async;
 
 external file CreateNewFile(void* Filename, i32 Flags);
@@ -129,7 +129,7 @@ external b32 ReadFromFile(file File, buffer* Dst, usz AmountToRead, usz StartPos
 |  goes beyond EOF, nothing is copied and function fails.
  |--- Return: 1 if read operation was successfully started, or 0 if not. */
 
-external b32 ReadFileAsync(file File, buffer* Dst, usz AmountToRead, async* Async);
+external b32 ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Async);
 
 /* Reads file in non-blocking manner. Memory must already be allocated and
 |  passed at [Dst], with at least [AmountToRead] size. Platform-specific
@@ -156,7 +156,7 @@ external b32 WriteToFile(file File, buffer Content, usz StartPos);
 |  APPEND_FILE flag, [StartPos] is ignored and it writes at EOF.
  |--- Return: 1 if successful, or 0 if not. */
 
-external b32 WriteFileAsync(file File, void* Src, usz AmountToWrite, async* Async);
+external b32 WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Async);
 
 /* Writes [AmounttoWrite] bytes from [Src] at beginning of [File] in non-blocking
  |  manner. If file was opened with APPEND_FILE flag, writes at EOF. Platform-
@@ -165,7 +165,7 @@ external b32 WriteFileAsync(file File, void* Src, usz AmountToWrite, async* Asyn
  |  will be posted.
  |--- Return: 1 if write operation was successfully started, or 0 if not. */
 
-external u32 WaitOnIoCompletion(file File, async* Async);
+external b32 WaitOnIoCompletion(async* Async, usz* BytesTransferred, b32 Block);
 
 /* Waits until an async IO operation done on [File] completes. [Async] is a
  |  pointer to the same async object used when start the IO.

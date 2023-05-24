@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <aio.h>
 #include <dlfcn.h>
 #include <dirent.h>
 #include <errno.h>
@@ -245,9 +246,23 @@ ReadEntireFile(file File)
 }
 
 external b32
-ReadFileAsync(file File, buffer* Dst, usz AmountToRead, async* Async)
+ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Async)
 {
-    return 0;
+    if (AmountToRead <= (Dst->Size - Dst->WriteCur))
+    {
+        struct aiocb* Context = (struct aiocb*)Async->Data;
+        Context->aio_fildes = (int)File;
+        Context->aio_buf = (void*)Dst->Base;
+        Context->aio_nbytes = AmountToRead;
+        Context->aio_offset = (off_t)StartPos;
+        
+        if (aio_read(Context) == 0)
+        {
+            Dst->WriteCur += AmountToRead;
+            return true;
+        }
+    }
+    return false;
 }
 
 external b32
@@ -274,15 +289,39 @@ WriteToFile(file File, buffer Content, usz StartPos)
 }
 
 external b32
-WriteFileAsync(file File, void* Src, usz AmountToWrite, async* Async)
+WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Async)
 {
-    return 0;
+    struct aiocb* Context = (struct aiocb*)Async->Data;
+    Context->aio_fildes = (int)File;
+    Context->aio_buf = Src;
+    Context->aio_nbytes = AmountToWrite;
+    Context->aio_offset = (off_t)StartPos;
+    
+    b32 Result = !aio_write(Context);
+    return Result;
 }
 
-external u32
-WaitOnIoCompletion(file File, async* Async)
+external b32
+WaitOnIoCompletion(async* Async, usz* BytesTransferred, b32 Block)
 {
-    return 0;
+    struct aiocb* Context = (struct aiocb*)Async->Data;
+    struct timespec* WaitTime = 0;
+    if (!Block)
+    {
+        WaitTime = (struct timespec*)&Context[1];
+        WaitTime->tv_sec = 0;
+        WaitTime->tv_nsec = 0;
+    }
+    
+    *BytesTransferred = 0;
+    const struct aiocb* const CtxList[1] = { Context };
+    if (aio_suspend(CtxList, 1, WaitTime) == 0)
+    {
+        *BytesTransferred = aio_return(Context);
+        return 1;
+    }
+    
+    return (errno == EAGAIN);
 }
 
 external usz
@@ -696,7 +735,7 @@ StopTiming(timing* Info)
     struct timespec Now;
     clock_gettime(gSysInfo.TimingFreq, &Now);
     Info->End = (isz)Now.tv_sec * 1000000000 + (isz)Now.tv_nsec;
-    Info->Diff = (f64)(Info->Start - Info->End) / 1000000000;
+    Info->Diff = (f64)(Info->End - Info->Start) / 1000000000;
 }
 
 external datetime

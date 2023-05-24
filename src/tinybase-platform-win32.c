@@ -246,28 +246,27 @@ ReadEntireFile(file File)
 }
 
 external b32
-ReadFileAsync(file File, buffer* Dst, usz AmountToRead, async* Async)
+ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Async)
 {
     if (AmountToRead <= (Dst->Size - Dst->WriteCur))
     {
-        OVERLAPPED* Overlapped = (OVERLAPPED*)&Async->Data;
-        
-        usz ReadChunk = Min(AmountToRead, U32_MAX);
+        OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
         u8* Ptr = Dst->Base + Dst->WriteCur;
         for (usz AmountRead = 0; AmountRead < AmountToRead; )
         {
-            DWORD BytesToRead = (DWORD)Min(AmountToRead - AmountRead, ReadChunk);
-            DWORD BytesRead = 0;
-            if (!ReadFile((HANDLE)File, Ptr, BytesToRead, &BytesRead, Overlapped)
+            Overlapped->Offset = StartPos & 0xFFFFFFFF;
+            Overlapped->OffsetHigh = (StartPos >> 32) & 0xFFFFFFFF;
+            DWORD BytesToRead = (DWORD)Min(AmountToRead - AmountRead, U32_MAX);
+            if (!ReadFile((HANDLE)File, Ptr, BytesToRead, NULL, Overlapped)
                 && GetLastError() != ERROR_IO_PENDING)
             {
                 return false;
             }
             Ptr += BytesToRead;
             AmountRead += BytesToRead;
-            Overlapped->Offset = AmountRead & 0xFFFFFFFF;
-            Overlapped->OffsetHigh = (AmountRead >> 32) & 0xFFFFFFFF;
+            StartPos += BytesToRead;
         }
+        *((file*)&Overlapped[1]) = File;
         Dst->WriteCur += AmountToRead;
         return true;
     }
@@ -310,37 +309,38 @@ WriteToFile(file File, buffer Content, usz StartPos)
 }
 
 external b32
-WriteFileAsync(file File, void* Src, usz AmountToWrite, async* Async)
+WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Async)
 {
-    OVERLAPPED* Overlapped = (OVERLAPPED*)&Async->Data;
+    OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
     
     usz WriteChunk = Min(AmountToWrite, U32_MAX);
     u8* Ptr = (u8*)Src;
     for (usz AmountWritten = 0; AmountWritten < AmountToWrite; )
     {
+        Overlapped->Offset = StartPos & 0xFFFFFFFF;
+        Overlapped->OffsetHigh = (StartPos >> 32) & 0xFFFFFFFF;
         DWORD BytesToWrite = (DWORD)Min(AmountToWrite - AmountWritten, WriteChunk);
-        DWORD BytesWritten = 0;
-        if (!WriteFile((HANDLE)File, Ptr, BytesToWrite, &BytesWritten, Overlapped)
+        if (!WriteFile((HANDLE)File, Ptr, BytesToWrite, 0, Overlapped)
             && GetLastError() != ERROR_IO_PENDING)
         {
             return false;
         }
         Ptr += BytesToWrite;
         AmountWritten += BytesToWrite;
-        Overlapped->Offset = AmountWritten & 0xFFFFFFFF;
-        Overlapped->OffsetHigh = (AmountWritten >> 32) & 0xFFFFFFFF;
+        StartPos += BytesToWrite;
     }
     
+    *((file*)&Overlapped[1]) = File;
     return true;
 }
 
-external u32
-WaitOnIoCompletion(file File, async* Async)
+external b32
+WaitOnIoCompletion(async* Async, usz* BytesTransferred, b32 Block)
 {
-    OVERLAPPED* Overlapped = (OVERLAPPED*)&Async->Data;
-    DWORD BytesTransferred;
-    GetOverlappedResult((HANDLE)File, Overlapped, &BytesTransferred, TRUE);
-    return BytesTransferred;
+    OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
+    HANDLE File = *((HANDLE*)&Overlapped[1]);
+    return (GetOverlappedResult(File, Overlapped, (LPDWORD)BytesTransferred, Block)
+            || (GetLastError() == ERROR_IO_INCOMPLETE));
 }
 
 external usz
