@@ -1,4 +1,4 @@
-extern int AddTwo(int A)
+int AddTwo(int A)
 {
     return A + 2;
 }
