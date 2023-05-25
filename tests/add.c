@@ -1,4 +1,4 @@
-extern "C" int AddTwo(int A)
+extern int AddTwo(int A)
 {
     return A + 2;
 }

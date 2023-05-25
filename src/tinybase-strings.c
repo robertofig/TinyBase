@@ -366,7 +366,7 @@ CountCharInString(mb_char Needle, string Haystack)
     usz Result = 0;
     for (usz Idx = 0
          ; (Idx = CharInString(Needle, Haystack, RETURN_IDX_AFTER)) != INVALID_IDX
-         ; AdvanceString(&Haystack, Idx))
+         ; AdvanceBuffer(&Haystack.Buffer, Idx))
     {
         Result++;
     }

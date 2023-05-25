@@ -248,7 +248,7 @@ bool TestListFiles(path DirPath, path Expected)
         AppendCharToString(';', &Compare);
     }
     
-    int FileEqual = 0, FileCount = 0, ExpCount = CountCharInString(';', Expected);
+    usz FileEqual = 0, FileCount = 0, ExpCount = CountCharInString(';', Expected);
     for (usz CmpToken = 0
          ; (CmpToken = CharInString(';', Compare, RETURN_IDX_FIND)) != INVALID_IDX
          ; FileCount++)
@@ -321,7 +321,7 @@ int main()
     LoadSystemInfo();
     
 #if defined(TT_WINDOWS)
-    wchar_t* LibPath = L".\\a.dll";
+    wchar_t* LibPath = L"add.dll";
     wchar_t* TestDir = L"test";
     wchar_t* _TempA = L"test\\temp.a";
     wchar_t* _TempB = L"test\\temp.b";
