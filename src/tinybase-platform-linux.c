@@ -194,9 +194,24 @@ RemoveFile(void* Filename)
 external usz
 FileSizeOf(file File)
 {
-    struct stat FileStat;
-    fstat((int)File, &FileStat);
-    usz Result = FileStat.st_size;
+    usz Result = USZ_MAX;
+    
+    struct stat Stat;
+    if (fstat((int)File, &Stat) == 0)
+    {
+        if (S_ISREG(Stat.st_mode))
+        {
+            Result = Stat.st_size;
+        }
+        else if (S_ISBLK(Stat.st_mode))
+        {
+            u64 Size;
+            if (ioctl((int)File, BLKGETSIZE64, &Size) == 0)
+            {
+                Result = (usz)Size;
+            }
+        }
+    }
     return Result;
 }
 
