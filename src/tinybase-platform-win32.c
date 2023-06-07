@@ -340,7 +340,7 @@ WaitOnIoCompletion(async* Async, usz* BytesTransferred, b32 Block)
     OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
     HANDLE File = *((HANDLE*)&Overlapped[1]);
     return (GetOverlappedResult(File, Overlapped, (LPDWORD)BytesTransferred, Block)
-            || (GetLastError() == ERROR_IO_INCOMPLETE));
+            || GetLastError() == ERROR_IO_INCOMPLETE);
 }
 
 external usz
