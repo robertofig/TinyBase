@@ -187,6 +187,46 @@ Pow(f64 Base, f64 Exponent)
 #endif
 }
 
+inline f64
+Sin(f64 Angle)
+{
+#if defined(TT_NO_CMATH)
+    return 0; // TODO: Implement.
+#else
+    return sin(Angle);
+#endif
+}
+
+inline f64
+Cos(f64 Angle)
+{
+#if defined(TT_NO_CMATH)
+    return 0; // TODO: Implement.
+#else
+    return cos(Angle);
+#endif
+}
+
+inline f64
+ACos(f64 Angle)
+{
+#if defined(TT_NO_CMATH)
+    return 0; // TODO: Implement.
+#else
+    return acos(Angle);
+#endif
+}
+
+inline f64
+Sqrt(f64 Value)
+{
+#if defined(TT_NO_CMATH)
+    return 0; // TODO: Implement.
+#else
+    return sqrt(Value);
+#endif
+}
+
 inline usz
 NumberOfDigits(isz Integer)
 {
