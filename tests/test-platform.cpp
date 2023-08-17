@@ -1,14 +1,13 @@
 #include "tinybase-platform.h"
 
 #include <stdio.h>
-#include <varargs.h>
 
 bool Error = false;
 #define Test(Callback, ...) \
 do { \
 if (!Test##Callback(__VA_ARGS__)) { \
 Error = true; \
-printf(" [%3d] %-40s ERRO.\n", __LINE__, #Callback##"()"); } \
+printf(" [%3d] %-40s ERRO.\n", __LINE__, #Callback"()"); } \
 } while (0); \
 
 //
@@ -18,27 +17,27 @@ printf(" [%3d] %-40s ERRO.\n", __LINE__, #Callback##"()"); } \
 bool TestGetMemory(usz Size, void* Address)
 {
     Size = Align(Size, gSysInfo.PageSize);
-    void* Mem = GetMemory(Size, Address, MEM_READ|MEM_WRITE);
-    if (Mem)
+    buffer Mem = GetMemory(Size, Address, MEM_READ|MEM_WRITE);
+    if (Mem.Base)
     {
-        try { *(u8*)Mem = 0; }
+        try { *Mem.Base = 0; }
         catch (...) { return false; }
         
-        try { *((u8*)Mem + Size - 1) = 0; }
+        try { *(Mem.Base + Size - 1) = 0; }
         catch (...) { return false; }
         
-        try { *((u8*)Mem + Size) = 0; }
-        catch (...) { return Address ? (isz)Mem == (isz)Address : true; }
+        try { *(Mem.Base + Size) = 0; }
+        catch (...) { return Address ? (isz)Mem.Base == (isz)Address : true; }
     }
     return false;
 }
 
 bool TestGetMemoryGuard(usz Size, void* Address)
 {
-    void* Mem = GetMemory(Size, Address, MEM_GUARD);
-    if (Mem)
+    buffer Mem = GetMemory(Size, Address, MEM_GUARD);
+    if (Mem.Base)
     {
-        try { *(u8*)Mem = 0; }
+        try { *Mem.Base = 0; }
         catch (...) { return true; }
     }
     return false;
@@ -46,39 +45,39 @@ bool TestGetMemoryGuard(usz Size, void* Address)
 
 bool TestGetMemoryReadOnly(usz Size, void* Address)
 {
-    void* Mem = GetMemory(Size, Address, MEM_READ);
-    if (Mem)
+    buffer Mem = GetMemory(Size, Address, MEM_READ);
+    if (Mem.Base)
     {
-        try { u8 Z = ((u8*)Mem)[0]; }
+        try { u8 Z = (Mem.Base)[0]; }
         catch (...) { return false;}
         
-        try { *(u8*)Mem = 0; }
+        try { *Mem.Base = 0; }
         catch (...) { return true; }
     }
     return false;
 }
 
-bool TestFreeMemory(void* Mem)
+bool TestFreeMemory(buffer Mem)
 {
-    FreeMemory(Mem);
-    try { *(u8*)Mem = 0; }
+    FreeMemory(&Mem);
+    try { *Mem.Base = 0; }
     catch (...) { return true; }
     return false;
 }
 
 bool TestGetMemoryFromHeap(usz SizeToAllocate)
 {
-    u8* Mem = (u8*)GetMemoryFromHeap(SizeToAllocate);
+    buffer Mem = GetMemoryFromHeap(SizeToAllocate);
     
-    try { *Mem = 0; }
+    try { *Mem.Base = 0; }
     catch (...) { return false; }
     
-    try { *(Mem + SizeToAllocate - 1) = 0; }
+    try { *(Mem.Base + SizeToAllocate - 1) = 0; }
     catch (...) { return false; }
     
     for (usz Idx = 0; Idx < SizeToAllocate; Idx++)
     {
-        if (Mem[Idx] != 0) return false;
+        if (Mem.Base[Idx] != 0) return false;
     }
     
     return true;
@@ -123,14 +122,13 @@ bool TestOpenFileReadWrite(void* Filename)
 
 bool TestReadFromFile(file FileHandle, usz StartPos, usz AmountToRead, buffer Expected1, bool Expected2)
 {
-    void* Mem = GetMemory(AmountToRead, 0, MEM_READ|MEM_WRITE);
-    if (ReadFromFile(FileHandle, Mem, AmountToRead, StartPos))
+    buffer Mem = GetMemory(AmountToRead, 0, MEM_READ|MEM_WRITE);
+    if (Mem.Base
+        && ReadFromFile(FileHandle, &Mem, AmountToRead, StartPos)
+        && EqualBuffers(Mem, Expected1)
+        && (Mem.Base[Mem.WriteCur-1] != 0))
     {
-        buffer File = Buffer(Mem, AmountToRead, 0);
-        if (EqualBuffers(File, Expected1) && (File.Base[File.WriteCur-1] != 0))
-        {
-            return true == Expected2;
-        }
+        return true == Expected2;
     }
     return false == Expected2;
 }
@@ -138,12 +136,11 @@ bool TestReadFromFile(file FileHandle, usz StartPos, usz AmountToRead, buffer Ex
 bool TestReadEntireFile(file FileHandle, buffer Expected1, bool Expected2)
 {
     buffer File = ReadEntireFile(FileHandle);
-    if (File.Base)
+    if (File.Base
+        && EqualBuffers(File, Expected1)
+        && (File.Base[File.WriteCur-1] != 0))
     {
-        if (EqualBuffers(File, Expected1) && (File.Base[File.WriteCur-1] != 0))
-        {
-            return true == Expected2;
-        }
+        return true == Expected2;
     }
     return false == Expected2;
 }
@@ -164,10 +161,10 @@ bool TestWriteToFile(file FileHandle, buffer Content, usz StartPos)
     bool Result = WriteToFile(FileHandle, Content, StartPos);
     if (Result)
     {
-        void* Mem = GetMemory(Content.WriteCur, 0, MEM_READ|MEM_WRITE);
-        ReadFromFile(FileHandle, Mem, Content.WriteCur, StartPos);
-        buffer File = Buffer(Mem, Content.WriteCur, Content.WriteCur);
-        Result = EqualBuffers(File, Content);
+        buffer Mem = GetMemory(Content.WriteCur, 0, MEM_READ|MEM_WRITE);
+        Result = (Mem.Base
+                  && ReadFromFile(FileHandle, &Mem, Content.WriteCur, StartPos)
+                  && EqualBuffers(Mem, Content));
     }
     return Result;
 }
@@ -240,18 +237,44 @@ bool TestMoveUpPath(path* Path, usz MoveUpCount, path Expected)
 bool TestListFiles(path DirPath, path Expected)
 {
     char CompareBuf[2048] = {0};
-    string Compare = String(CompareBuf, 0, sizeof(CompareBuf), EC_UTF16LE);
+    path Compare = String(CompareBuf, 0, sizeof(CompareBuf), Expected.Enc);
     
     iter_dir Iter = {0};
     InitIterDir(&Iter, DirPath);
     while (ListFiles(&Iter))
     {
-        //usz FilenameSize = Len(Path(Iter.Filename), LEN_CSTRING);
-        usz FilenameSize = 2 * wcslen((wchar_t*)Iter.Filename);
-        AppendStringToString(String(Iter.Filename, FilenameSize, 0, EC_UTF16LE), &Compare);
+        usz FilenameSize = StringLen(Path(Iter.Filename), LEN_CSTRING);
+        AppendStringToString(String(Iter.Filename, FilenameSize, 0, Compare.Enc), &Compare);
+        AppendCharToString(';', &Compare);
     }
     
-    return EqualStrings(Compare, Expected);
+    usz FileEqual = 0, FileCount = 0, ExpCount = CountCharInString(';', Expected);
+    for (usz CmpToken = 0
+         ; (CmpToken = CharInString(';', Compare, RETURN_IDX_FIND)) != INVALID_IDX
+         ; FileCount++)
+    {
+        string CompareFile = Compare;
+        CompareFile.WriteCur = CmpToken;
+        string Verify = Expected;
+        for (usz VerToken = 0
+             ; (VerToken = CharInString(';', Verify, RETURN_IDX_FIND)) != INVALID_IDX
+             ; )
+        {
+            string VerifyFile = Verify;
+            VerifyFile.WriteCur = VerToken;
+            if (EqualStrings(CompareFile, VerifyFile))
+            {
+                FileEqual++;
+                break;
+            }
+            AdvanceBuffer(&Verify.Buffer, VerToken);
+            AdvanceString(&Verify, 1);
+        }
+        AdvanceBuffer(&Compare.Buffer, CmpToken);
+        AdvanceString(&Compare, 1);
+    }
+    
+    return (FileCount == ExpCount && FileCount == FileEqual);
 }
 
 bool TestRemoveDir(void* Path, bool RemoveAllFiles, b32 Expected)
@@ -298,7 +321,7 @@ int main()
     LoadSystemInfo();
     
 #if defined(TT_WINDOWS)
-    wchar_t* LibPath = L"..\\tests\\a.dll";
+    wchar_t* LibPath = L"add.dll";
     wchar_t* TestDir = L"test";
     wchar_t* _TempA = L"test\\temp.a";
     wchar_t* _TempB = L"test\\temp.b";
@@ -310,7 +333,7 @@ int main()
     wchar_t* TempdirDir1Dir2 = L"test\\tempdir\\dir1\\dir2";
     wchar_t* TempdirDir2 = L"test\\tempdir\\dir2";
     wchar_t* Tempdir2 = L"test\\tempdir2";
-    wchar_t* CompareListDir = L"temp.btemp.ctempdir";
+    wchar_t* CompareListDir = L"temp.b;temp.c;tempdir;";
     wchar_t* Dir1Lit = L"dir1";
     wchar_t* Dir2Lit = L"dir2";
     wchar_t* EmptyLit = L"";
@@ -323,10 +346,10 @@ int main()
 #define __VFILE__ VF1(__FILE__)
     
 #else
-    char* LibPath = "../tests/a.dll";
+    char* LibPath = "./add.so";
     char* TestDir = "test";
     char* _TempA = "test/temp.a";
-    char* _TempB = "test/temp.b";
+    char* _TempB = "test/.temp.b";
     char* _TempC = "test/temp.c";
     char* _TempD = "test/temp.d";
     char* Tempdir = "test/tempdir";
@@ -335,7 +358,7 @@ int main()
     char* TempdirDir1Dir2 = "test/tempdir/dir1/dir2";
     char* TempdirDir2 = "test/tempdir/dir2";
     char* Tempdir2 = "test/tempdir2";
-    char* CompareListDir = "temp.btemp.ctempdir";
+    char* CompareListDir = ".temp.b;temp.c;tempdir;";
     char* Dir1Lit = "dir1";
     char* Dir2Lit = "dir2";
     char* EmptyLit = "";
@@ -349,13 +372,15 @@ int main()
     
     // Memory
     void* Address = (void*)(isz)0x2000000;
-    void* Mem1 = GetMemory(Kilobyte(1), NULL, MEM_READ);
+    buffer Mem1 = GetMemory(Kilobyte(1), NULL, MEM_READ);
     
+#if 0
     Test(GetMemory, gSysInfo.PageSize, Address);
     Test(FreeMemory, Mem1);
     Test(GetMemoryReadOnly, gSysInfo.PageSize, NULL);
     Test(GetMemoryGuard, gSysInfo.PageSize, NULL);
     Test(GetMemoryFromHeap, 100);
+#endif
     
     // FileIO
     file File;

@@ -7,6 +7,7 @@
 //=========================================================================
 #define TINYBASE_TYPES_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <float.h>
 
@@ -15,37 +16,40 @@
 //==================================
 
 #if defined(_WIN32)
-#define TT_WINDOWS
-#define MAX_PATH_SIZE 520 // 260 wchar_t elements.
-#define INVALID_FILE USZ_MAX
-#define ASYNC_DATA_SIZE 40 // OVERLAPPED struct.
-#else
-// Reserved for other platforms.
+# define TT_WINDOWS
+# define MAX_PATH_SIZE 520 // 260 wchar_t elements.
+# define INVALID_FILE USZ_MAX
+# define ASYNC_DATA_SIZE 48 // OVERLAPPED struct + HANDLE.
+#elif defined(__linux__)
+# define TT_LINUX
+# define MAX_PATH_SIZE 4096
+# define INVALID_FILE USZ_MAX
+# define ASYNC_DATA_SIZE 184 // aiocb struct + timespec struct.
+#else // Reserved for other platforms.
 #endif //_WIN32
 
 #if defined(__clang__)
-#define TT_CLANG
+# define TT_CLANG
 #elif defined(_MSC_VER)
-#define TT_MSVC
-#else
-// Reserved for other compilers.
+# define TT_MSVC
+#else // Reserved for other compilers.
 #endif //__clang__
 
 //==================================
 // Architecture defines
 //==================================
 
-#if defined(_M_AMD64) || defined(__X86_64__)
-#define TT_X64
-#if defined(TT_WINDOWS)
-#include <intrin.h>
-#else
-// Reserved for other platforms.
-#endif //TT_WINDOWS
-#define XMM128_SIZE 0x10
-#define XMM128_LAST_IDX 0xF
-#define XMM256_SIZE 0x20
-#define XMM256_LAST_IDX 0x1F
+#if defined(_M_AMD64) || defined(__amd64__)
+# define TT_X64
+# if defined(TT_WINDOWS)
+#  include <intrin.h>
+# else
+#  include <x86intrin.h>
+# endif //TT_WINDOWS
+# define XMM128_SIZE 0x10
+# define XMM128_LAST_IDX 0xF
+# define XMM256_SIZE 0x20
+# define XMM256_LAST_IDX 0x1F
 static int CPUIDLeaf1[4] = {0};
 static int CPUIDLeaf7a[4] = {0};
 #else
@@ -105,19 +109,19 @@ typedef int32_t  b32;
 #define U64_MAX_DIGITS 20
 
 #if defined(TT_X64) // 64-bits registers.
-#define ISZ_MIN I64_MIN
-#define ISZ_MAX I64_MAX
-#define ISZ_MAX_DIGITS I32_MAX_DIGITS
-#define USZ_MIN U64_MIN
-#define USZ_MAX U64_MAX
-#define USZ_MAX_DIGITS U64_MAX_DIGITS
+# define ISZ_MIN I64_MIN
+# define ISZ_MAX I64_MAX
+# define ISZ_MAX_DIGITS I32_MAX_DIGITS
+# define USZ_MIN U64_MIN
+# define USZ_MAX U64_MAX
+# define USZ_MAX_DIGITS U64_MAX_DIGITS
 #else               // 32-bits registers.
-#define ISZ_MIN I32_MIN
-#define ISZ_MAX I32_MAX
-#define ISZ_MAX_DIGITS I32_MAX_DIGITS
-#define USZ_MIN U32_MIN
-#define USZ_MAX U32_MAX
-#define USZ_MAX_DIGITS U32_MAX_DIGITS
+# define ISZ_MIN I32_MIN
+# define ISZ_MAX I32_MAX
+# define ISZ_MAX_DIGITS I32_MAX_DIGITS
+# define USZ_MIN U32_MIN
+# define USZ_MAX U32_MAX
+# define USZ_MAX_DIGITS U32_MAX_DIGITS
 #endif
 
 #define _opt
@@ -127,14 +131,14 @@ typedef int32_t  b32;
 //==================================
 
 #if defined(__cplusplus)
-#define external extern "C"
+# define external extern "C"
 #else
-#include <stdbool.h>
-#define external extern
+# include <stdbool.h>
+# define external extern
 #endif //__cplusplus
 
 #if !defined(TT_NO_CMATH)
-#include <math.h>
+# include <math.h>
 #endif
 
 //==================================
@@ -157,7 +161,7 @@ typedef int32_t  b32;
 (I << 8)  & 0xFF00000000     | (I << 24) & 0xFF0000000000      | \
 (I << 40) & 0xFF000000000000 | (I << 56) & 0xFF00000000000000)
 
-inline i32
+static inline i32
 GetFirstBitSet(u32 Mask)
 {
     local const i32 MultiplyDeBruijnBitPosition[32] = 
@@ -170,14 +174,14 @@ GetFirstBitSet(u32 Mask)
     return Result;
 }
 
-inline u32
+static inline u32
 ClearBit(u32 Value, i32 Bit)
 {
     Value &= ~(1UL << Bit);
     return Value;
 }
 
-inline f64
+static inline f64
 Pow(f64 Base, f64 Exponent)
 {
 #if defined(TT_NO_CMATH)
@@ -243,14 +247,12 @@ external void
 LoadCPUArch(void)
 {
 #if defined(TT_X64) || defined(TT_X86)
-#if defined(TT_MSVC)
+# if defined(TT_MSVC)
     __cpuid(CPUIDLeaf1, 1);
     __cpuidex(CPUIDLeaf7a, 7, 0);
-#else
-    // Reserved for other compilers.
-#endif //TT_MSVC
-#else
-    // Reserved for other architectures.
+# else // Reserved for other compilers.
+# endif //TT_MSVC
+#else // Reserved for other architectures.
 #endif //TT_X64 || TT_X86
     
 #define TT_ARCH_INFO

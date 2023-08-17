@@ -52,14 +52,17 @@ LoadSystemInfo(void)
 //========================================
 
 external void
-ClearMemory(void* Address, usz SizeToClear)
+ClearMemory(buffer* Mem)
 {
-    memset(Address, 0, SizeToClear);
+    memset(Mem->Base, 0, Mem->Size);
+    Mem->WriteCur = 0;
 }
 
-external void*
+external buffer
 GetMemory(usz Size, void* Address, int Flags)
 {
+    buffer Result = {0};
+    
     DWORD Access = 0;
     if (Flags & MEM_GUARD) Access = PAGE_NOACCESS;
     else if (Flags & MEM_EXEC)
@@ -70,30 +73,42 @@ GetMemory(usz Size, void* Address, int Flags)
     }
     else if (Flags & MEM_WRITE) Access = PAGE_READWRITE;
     else Access = PAGE_READONLY;
-    
     DWORD AllocType = MEM_RESERVE | MEM_COMMIT | ((Flags & MEM_HUGEPAGE) ? MEM_LARGE_PAGES : 0);
     
-    void* Result = VirtualAlloc(Address, Size, AllocType, Access);
+    void* Ptr = VirtualAlloc(Address, Size, AllocType, Access);
+    if (Ptr)
+    {
+        Result.Base = (u8*)Ptr;
+        Result.Size = (gSysInfo.PageSize) ? Align(Size, gSysInfo.PageSize) : Size;
+    }
     return Result;
 }
 
 external void
-FreeMemory(void* Address)
+FreeMemory(buffer* Mem)
 {
-    VirtualFree(Address, 0, MEM_RELEASE);
+    VirtualFree(Mem->Base, 0, MEM_RELEASE);
+    memset(Mem, 0, sizeof(buffer));
 }
 
-external void*
+external buffer
 GetMemoryFromHeap(usz SizeToAllocate)
 {
+    buffer Result = {0};
     void* Ptr = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, SizeToAllocate);
-    return Ptr;
+    if (Ptr)
+    {
+        Result.Base = (u8*)Ptr;
+        Result.Size = SizeToAllocate;
+    }
+    return Result;
 }
 
 external void
-FreeMemoryFromHeap(void* Address)
+FreeMemoryFromHeap(buffer* Mem)
 {
-    HeapFree(GetProcessHeap(), 0, Address);
+    HeapFree(GetProcessHeap(), 0, Mem->Base);
+    memset(Mem, 0, sizeof(buffer));
 }
 
 //========================================
@@ -134,7 +149,8 @@ CreateNewFile(void* Filename, i32 Flags)
 external file
 OpenFileHandle(void* Filename, i32 Flags)
 {
-    file Result = _NewFile(Filename, OPEN_EXISTING, Flags);
+    DWORD CreationMode = (Flags & FORCE_OPEN) ? OPEN_ALWAYS : OPEN_EXISTING;
+    file Result = _NewFile(Filename, CreationMode, Flags);
     return Result;
 }
 
@@ -184,16 +200,15 @@ SeekFile(file File, usz Pos)
 }
 
 external b32
-ReadFromFile(file File, void* Dst, usz AmountToRead, usz StartPos)
+ReadFromFile(file File, buffer* Dst, usz AmountToRead, usz StartPos)
 {
-    b32 Result = false;
-    
     usz FileSize = FileSizeOf(File);
-    if (StartPos + AmountToRead <= FileSize)
+    if ((StartPos + AmountToRead) <= FileSize
+        && AmountToRead <= (Dst->Size - Dst->WriteCur))
     {
         SeekFile(File, StartPos);
         usz RemainsToRead = AmountToRead;
-        u8* Ptr = (u8*)Dst;
+        u8* Ptr = Dst->Base + Dst->WriteCur;
         while (RemainsToRead > 0)
         {
             DWORD ReadSize = (RemainsToRead > U32_MAX) ? U32_MAX : (DWORD)RemainsToRead;
@@ -205,56 +220,57 @@ ReadFromFile(file File, void* Dst, usz AmountToRead, usz StartPos)
             RemainsToRead -= BytesRead;
             Ptr += BytesRead;
         }
-        Result = true;
+        Dst->WriteCur += AmountToRead;
+        return true;
     }
-    
-    return Result;
+    return false;
 }
 
 external buffer
 ReadEntireFile(file File)
 {
-    buffer Result = {0};
-    
     usz FileSize = FileSizeOf(File);
-    void* Mem = GetMemory(FileSize, 0, MEM_READ|MEM_WRITE);
-    if (Mem)
+    buffer Mem = GetMemory(FileSize, 0, MEM_READ|MEM_WRITE);
+    if (Mem.Base)
     {
-        if (ReadFromFile(File, Mem, FileSize, 0))
+        if (ReadFromFile(File, &Mem, FileSize, 0))
         {
-            Result = Buffer(Mem, FileSize, FileSize);
+            Mem.WriteCur = FileSize;
         }
         else
         {
-            FreeMemory(Mem);
+            FreeMemory(&Mem);
         }
     }
-    return Result;
+    return Mem;
 }
 
 external b32
-ReadFileAsync(file File, void* Dst, usz AmountToRead, async* Async)
+ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Async)
 {
-    OVERLAPPED* Overlapped = (OVERLAPPED*)&Async->Data;
-    
-    usz ReadChunk = Min(AmountToRead, U32_MAX);
-    u8* Ptr = (u8*)Dst;
-    for (usz AmountRead = 0; AmountRead < AmountToRead; )
+    if (AmountToRead <= (Dst->Size - Dst->WriteCur))
     {
-        DWORD BytesToRead = (DWORD)Min(AmountToRead - AmountRead, ReadChunk);
-        DWORD BytesRead = 0;
-        if (!ReadFile((HANDLE)File, Ptr, BytesToRead, &BytesRead, Overlapped)
-            && GetLastError() != ERROR_IO_PENDING)
+        OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
+        u8* Ptr = Dst->Base + Dst->WriteCur;
+        for (usz AmountRead = 0; AmountRead < AmountToRead; )
         {
-            return false;
+            Overlapped->Offset = StartPos & 0xFFFFFFFF;
+            Overlapped->OffsetHigh = (StartPos >> 32) & 0xFFFFFFFF;
+            DWORD BytesToRead = (DWORD)Min(AmountToRead - AmountRead, U32_MAX);
+            if (!ReadFile((HANDLE)File, Ptr, BytesToRead, NULL, Overlapped)
+                && GetLastError() != ERROR_IO_PENDING)
+            {
+                return false;
+            }
+            Ptr += BytesToRead;
+            AmountRead += BytesToRead;
+            StartPos += BytesToRead;
         }
-        Ptr += BytesToRead;
-        AmountRead += BytesToRead;
-        Overlapped->Offset = AmountRead & 0xFFFFFFFF;
-        Overlapped->OffsetHigh = (AmountRead >> 32) & 0xFFFFFFFF;
+        *((file*)&Overlapped[1]) = File;
+        Dst->WriteCur += AmountToRead;
+        return true;
     }
-    
-    return true;
+    return false;
 }
 
 external b32
@@ -293,37 +309,38 @@ WriteToFile(file File, buffer Content, usz StartPos)
 }
 
 external b32
-WriteFileAsync(file File, void* Src, usz AmountToWrite, async* Async)
+WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Async)
 {
-    OVERLAPPED* Overlapped = (OVERLAPPED*)&Async->Data;
+    OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
     
     usz WriteChunk = Min(AmountToWrite, U32_MAX);
     u8* Ptr = (u8*)Src;
     for (usz AmountWritten = 0; AmountWritten < AmountToWrite; )
     {
+        Overlapped->Offset = StartPos & 0xFFFFFFFF;
+        Overlapped->OffsetHigh = (StartPos >> 32) & 0xFFFFFFFF;
         DWORD BytesToWrite = (DWORD)Min(AmountToWrite - AmountWritten, WriteChunk);
-        DWORD BytesWritten = 0;
-        if (!WriteFile((HANDLE)File, Ptr, BytesToWrite, &BytesWritten, Overlapped)
+        if (!WriteFile((HANDLE)File, Ptr, BytesToWrite, 0, Overlapped)
             && GetLastError() != ERROR_IO_PENDING)
         {
             return false;
         }
         Ptr += BytesToWrite;
         AmountWritten += BytesToWrite;
-        Overlapped->Offset = AmountWritten & 0xFFFFFFFF;
-        Overlapped->OffsetHigh = (AmountWritten >> 32) & 0xFFFFFFFF;
+        StartPos += BytesToWrite;
     }
     
+    *((file*)&Overlapped[1]) = File;
     return true;
 }
 
-external u32
-WaitOnIoCompletion(file File, async* Async)
+external b32
+WaitOnIoCompletion(async* Async, usz* BytesTransferred, b32 Block)
 {
-    OVERLAPPED* Overlapped = (OVERLAPPED*)&Async->Data;
-    DWORD BytesTransferred;
-    GetOverlappedResult((HANDLE)File, Overlapped, &BytesTransferred, TRUE);
-    return BytesTransferred;
+    OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
+    HANDLE File = *((HANDLE*)&Overlapped[1]);
+    return (GetOverlappedResult(File, Overlapped, (LPDWORD)BytesTransferred, Block)
+            || GetLastError() == ERROR_IO_INCOMPLETE);
 }
 
 external usz
@@ -439,7 +456,6 @@ PathLit(void* CString)
     {
         Result.Base = (char*)CString;
         Result.WriteCur = CStringSize;
-        Result.Size = CStringSize;
     }
     return Result;
 }
@@ -789,25 +805,26 @@ UnloadExternalLibrary(file Library)
 // Threading
 //========================================
 
-external file
-ThreadCreate(void* ThreadProc, void* ThreadArg, usz* ThreadId, bool CreateAndRun)
+external thread
+ThreadCreate(thread_proc ThreadProc, void* ThreadArg, b32 Waitable)
 {
-    DWORD Creation = !CreateAndRun * 4;
-    file Thread = (file)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ThreadProc, ThreadArg, Creation, (LPDWORD)ThreadId);
-    return Thread;
+    // [Waitable] does nothing on Windows.
+    thread Result = {0};
+    Result.Handle = (file)CreateThread(NULL, Megabyte(2), (LPTHREAD_START_ROUTINE)ThreadProc, ThreadArg, 0, 0);
+    return Result;
 }
 
 external b32
-ThreadChangeScheduling(file Thread, int NewScheduling)
+ThreadChangeScheduling(thread* Thread, int NewScheduling)
 {
     DWORD Priority = NewScheduling * NORMAL_PRIORITY_CLASS;
-    return SetPriorityClass((HANDLE)Thread, Priority);
+    return SetPriorityClass((HANDLE)Thread->Handle, Priority);
 }
 
 external i32
-ThreadGetScheduling(file Thread)
+ThreadGetScheduling(thread Thread)
 {
-    switch (GetPriorityClass((HANDLE)Thread))
+    switch (GetPriorityClass((HANDLE)Thread.Handle))
     {
         case ABOVE_NORMAL_PRIORITY_CLASS:
         case HIGH_PRIORITY_CLASS:
@@ -816,28 +833,39 @@ ThreadGetScheduling(file Thread)
         case BELOW_NORMAL_PRIORITY_CLASS:
         case IDLE_PRIORITY_CLASS:     return SCHEDULE_LOW;
         
-        default:                      return SCHEDULE_NORMAL;
+        case NORMAL_PRIORITY_CLASS:   return SCHEDULE_NORMAL;
+        default:                      return SCHEDULE_UNKNOWN;
     }
 }
 
-external void
-ThreadExit(isz ExitCode)
+external b32
+ThreadClose(thread* Thread)
 {
-    ExitThread((DWORD)ExitCode);
+    // Function currently is a stub, to be expanded in the future.
+    CloseHandle((HANDLE)Thread->Handle);
+    return 1;
 }
 
 external b32
-ThreadSuspend(file Thread)
+ThreadWait(thread* Thread)
 {
-    DWORD Result = SuspendThread((HANDLE)Thread);
-    return (Result >= 0) ? true : false;
+    if (WaitForSingleObject((HANDLE)Thread->Handle, INFINITE) != WAIT_FAILED)
+    {
+        ThreadClose(Thread);
+        return 1;
+    }
+    return 0;
 }
 
-external bool
-ThreadUnsuspend(file Thread)
+external b32
+ThreadKill(thread* Thread)
 {
-    DWORD Result = ResumeThread((HANDLE)Thread);
-    return (Result >= 0) ? true : false;
+    if (TerminateThread((HANDLE)Thread->Handle, 0))
+    {
+        ThreadClose(Thread);
+        return 1;
+    }
+    return 0;
 }
 
 //========================================
@@ -847,27 +875,27 @@ ThreadUnsuspend(file Thread)
 external i16
 AtomicExchange16(void* volatile Dst, i16 Value)
 {
-    i32 Result = InterlockedExchange16((i16*)Dst, Value);
-    return Result;
+    i16 OldValue = InterlockedExchange16((i16*)Dst, Value);
+    return OldValue;
 }
 
 external i32
 AtomicExchange32(void* volatile Dst, i32 Value)
 {
-    i32 Result = InterlockedExchange((long*)Dst, (long)Value);
-    return Result;
+    i32 OldValue = InterlockedExchange((long*)Dst, (long)Value);
+    return OldValue;
 }
 
 external i64
 AtomicExchange64(void* volatile Dst, i64 Value)
 {
-    i64 Result = InterlockedExchange64((i64*)Dst, Value);
-    return Result;
+    i64 OldValue = InterlockedExchange64((i64*)Dst, Value);
+    return OldValue;
 }
 
 external void*
 AtomicExchangePtr(void* volatile* Dst, void* Value)
 {
-    void* Result = InterlockedExchangePointer(Dst, Value);
-    return Result;
+    void* OldValue = InterlockedExchangePointer(Dst, Value);
+    return OldValue;
 }

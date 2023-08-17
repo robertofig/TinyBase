@@ -1,14 +1,13 @@
 #include "tinybase-strings.h"
 
 #include <stdio.h>
-#include <varargs.h>
 
 bool Error = false;
 #define Test(Callback, ...) \
 do { \
 if (!Test##Callback(__VA_ARGS__)) { \
 Error = true; \
-printf(" [%3d] %-40s ERRO.\n", __LINE__, #Callback##"()"); } \
+printf(" [%3d] %-40s ERRO.\n", __LINE__, #Callback"()"); } \
 } while (0); \
 
 //

@@ -46,32 +46,30 @@ external void LoadSystemInfo(void);
 #define MEM_EXEC     0x8  // Marks memory pages as executable.
 #define MEM_HUGEPAGE 0x10 // Reserves large memory pages, if the system supports.
 
-external void* GetMemory(usz Size, _opt void* Address, _opt int AccessFlags);
+external buffer GetMemory(usz Size, _opt void* Address, _opt int AccessFlags);
 
 /* Allocates memory block of [Size] bytes, rounded up to system page size.
  |  Block is guaranteed to be zeroed. A start [Address] can optionally be passed
  |  (system will choose random address if this is NULL). [AccessFlags] determines
  |  memory block behaviour; if none is passed, block is set to read-only.
- |--- Return: pointer to memory block if successful, or NULL if not. */
+ |--- Return: buffer of allocated memory if successful, empty otherwise. */
 
-external void ClearMemory(void* Address, usz SizeToClear);
+external void ClearMemory(buffer* Mem);
 
-/* Clears [SizeToClear] bytes starting from [Address] to zero. Function does not
-|  check for buffer overflows, it is responsability of the caller to pass an
-|  amount of bytes that will not result in a segfault.
+/* Clears entire buffer in [Mem] to zero.
  |--- Return: nothing. */
 
-external void FreeMemory(void* Address);
+external void FreeMemory(buffer* Mem);
 
 /* Frees memory block allocated with GetMemory(). Frees the entire block at once.
  |--- Return: nothing. */
 
-external void* GetMemoryFromHeap(usz Size);
+external buffer GetMemoryFromHeap(usz Size);
 
 /* Gets a chunk of memory of [Size] bytes from the main process heap.
-|--- Return: pointer to memory block if successful, or NULL if not. */
+|--- Return: buffer of heap memory if successful, empty otherwise. */
 
-external void FreeMemoryFromHeap(void* Address);
+external void FreeMemoryFromHeap(buffer* Mem);
 
 /* Frees memory chunk allocated with GetMemoryFromHeap().
  |--- Return: nothing. */
@@ -96,7 +94,7 @@ typedef usz file;
 
 typedef struct async
 {
-    u8 Data[ASYNC_DATA_SIZE]; // OVERLAPPED on Windows.
+    u8 Data[ASYNC_DATA_SIZE];
 } async;
 
 external file CreateNewFile(void* Filename, i32 Flags);
@@ -124,14 +122,14 @@ external buffer ReadEntireFile(file File);
 |  access, and copies entire file content to it.
 |--- Return: buffer with memory if successful, or empty buffer if not. */
 
-external b32 ReadFromFile(file File, void* Dst, usz AmountToRead, usz StartPos);
+external b32 ReadFromFile(file File, buffer* Dst, usz AmountToRead, usz StartPos);
 
 /* Copies [AmountToRead] bytes from [File] at [StartPos] offset into [Dst]
 |  memory. Memory must already be allocated. If [StartPos] + [AmountToRead]
 |  goes beyond EOF, nothing is copied and function fails.
  |--- Return: 1 if read operation was successfully started, or 0 if not. */
 
-external b32 ReadFileAsync(file File, void* Dst, usz AmountToRead, async* Async);
+external b32 ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Async);
 
 /* Reads file in non-blocking manner. Memory must already be allocated and
 |  passed at [Dst], with at least [AmountToRead] size. Platform-specific
@@ -158,7 +156,7 @@ external b32 WriteToFile(file File, buffer Content, usz StartPos);
 |  APPEND_FILE flag, [StartPos] is ignored and it writes at EOF.
  |--- Return: 1 if successful, or 0 if not. */
 
-external b32 WriteFileAsync(file File, void* Src, usz AmountToWrite, async* Async);
+external b32 WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Async);
 
 /* Writes [AmounttoWrite] bytes from [Src] at beginning of [File] in non-blocking
  |  manner. If file was opened with APPEND_FILE flag, writes at EOF. Platform-
@@ -167,7 +165,7 @@ external b32 WriteFileAsync(file File, void* Src, usz AmountToWrite, async* Asyn
  |  will be posted.
  |--- Return: 1 if write operation was successfully started, or 0 if not. */
 
-external u32 WaitOnIoCompletion(file File, async* Async);
+external b32 WaitOnIoCompletion(async* Async, usz* BytesTransferred, b32 Block);
 
 /* Waits until an async IO operation done on [File] completes. [Async] is a
  |  pointer to the same async object used when start the IO.
@@ -430,45 +428,67 @@ external b32 UnloadExternalLibrary(file Library);
 // Threading
 //========================================
 
-#define SCHEDULE_NORMAL 1
-#define SCHEDULE_LOW    2
-#define SCHEDULE_HIGH   4
+#define SCHEDULE_UNKNOWN 0
+#define SCHEDULE_NORMAL  1
+#define SCHEDULE_LOW     2
+#define SCHEDULE_HIGH    4
 
-external file ThreadCreate(void* ThreadProc, void* ThreadArg, _opt usz* ThreadId, bool CreateAndRun);
+typedef struct thread
+{
+    file Handle;
+    // Space reserved for expansion.
+} thread;
+
+#if defined(TT_WINDOWS)
+# define THREAD_PROC(Name) u32 Name(void* Arg)
+typedef u32 (*thread_proc)(void*);
+#elif defined(TT_LINUX)
+# define THREAD_PROC(Name) void* Name(void* Arg)
+typedef void* (*thread_proc)(void*);
+#else // Reserved for other platforms;
+#endif
+
+
+external thread ThreadCreate(thread_proc ThreadProc, void* ThreadArg, b32 Waitable);
 
 /* Creates a new thread. [ThreadProc] specifies the entry point, and should be a function
- |  that takes one void* as input parameter, and returns a void*. [ThreadArg] is the parameter
-|  passed to the function pointed to at [ThreadProc]. [ThreadId] is a pointer to an usz variable
-|  that received the thread id back (can be NULL). [CreateAndRun] determines if the thread
-|  if start suspended or not.
-|--- Return: file handle to thread, or NULL if creation failed. */
+ |  of type thread_proc. [ThreadArg] is the parameter passed to the function pointed to at
+ |  [ThreadProc]. [Waitable] determines how to close the thread; if 1, the parent thread
+ |  must wait on the child thread with ThreadWait() to close it; otherwise it must call
+|  ThreadClose() explicitly after it knows the thread has finished.
+|--- Return: thread object, or NULL if creation failed. */
 
-external b32 ThreadChangeScheduling(file Thread, int NewScheduling);
+external b32 ThreadChangeScheduling(thread* Thread, int NewScheduling);
 
 /* Change how frequently [Thread] is awoken by the system. [NewScheduling] can either
  |  be SCHEDULE_NORMAL, SCHEDULE_LOW or SCHEDULE_HIGH.
 |--- Return: 1 if successful, 0 if not. */
 
-external i32 ThreadGetScheduling(file Thread);
+external i32 ThreadGetScheduling(thread Thread);
 
-/* Get current scheduling rule for [Thread]. Value can be SCHEDULE_NORMAL (1), SCHEDULE_LOW (2)
- |  or SCHEDULE_HIGH (4).
+/* Get current scheduling rule for [Thread]. Value can be SCHEDULE_NORMAL (1),
+|  SCHEDULE_LOW (2) or SCHEDULE_HIGH (4).
 |--- Return: number referring to thread schedule. */
 
-external b32 ThreadSuspend(file Thread);
+external b32 ThreadClose(thread* Thread);
 
-/* Suspends thread at file handle [Thread].
-|--- Return: 1 if successful, 0 if not. */
+/* Cleans up thread, after it has finished running. Must only be called on
+|  non-waitable threads. Failure to call it may result in memory leaks.
+ |--- Return: 1 if successful, 0 if not. */
 
-external bool ThreadUnsuspend(file Thread);
+external b32 ThreadWait(thread* Thread);
 
-/* Unsuspends thread at file handle [Thread].
-|--- Return: 1 if successful, 0 if not. */
+/* Waits on a thread created with Waitable status. This will block the calling thread
+ |  until [Thread] finishes running. If it has already finished, returns immediately.
+|  This also cleans up the thread, so no need to call ThreadClose().
+ |--- Return: 1 if successful, 0 if not. */
 
-external void ThreadExit(isz ExitCode);
+external b32 ThreadKill(thread* Thread);
 
-/* Exits the thread that calls this function.
- |--- Return: nothing. */
+/* Forcefully terminates the running thread, and cleans up its resources. Calling
+ |  this function on a thread that has already been closed may have unpredictable
+|  behaviour, and should be avoided.
+ |--- Return: 1 if successful, 0 if not. */
 
 
 //========================================
@@ -497,9 +517,11 @@ external void* AtomicExchangePtr(void* volatile* Dst, void* Value);
 
 
 #if !defined(TT_STATIC_LINKING)
-#if defined(TT_WINDOWS)
-#include "tinybase-platform-win32.c"
-#endif //TT_WINDOWS
+# if defined(TT_WINDOWS)
+#  include "tinybase-platform-win32.c"
+# elif defined(TT_LINUX)
+#  include "tinybase-platform-linux.c"
+# endif //TT_WINDOWS
 #endif //TT_STATIC_LINKING
 
 #endif //TINYBASE_PLATFORM_H

@@ -204,19 +204,21 @@ internal usz
 _ReverseByteInBufferIdxSimple(u8 Needle, buffer Haystack)
 {
     u8* HaystackPtr = (u8*)Haystack.Base;
-    for (usz Idx = Haystack.WriteCur-1; Idx > 0; Idx--)
+    if (Haystack.WriteCur > 0)
     {
-        if (HaystackPtr[Idx] == Needle)
+        for (usz Idx = Haystack.WriteCur-1; Idx > 0; Idx--)
         {
-            return Idx;
+            if (HaystackPtr[Idx] == Needle)
+            {
+                return Idx;
+            }
+        }
+        
+        if (HaystackPtr[0] == Needle)
+        {
+            return 0;
         }
     }
-    
-    if (HaystackPtr[0] == Needle)
-    {
-        return 0;
-    }
-    
     return INVALID_IDX;
 }
 internal usz (*_ReverseByteInBufferIdx)(u8, buffer) = &_ReverseByteInBufferIdxSimple;
@@ -573,7 +575,6 @@ _BufferInBufferIdxAVX2(buffer Needle, buffer Haystack)
         if (Needle.WriteCur >= XMM128_SIZE)
         {
             __m128i NeedleChunk = _mm_loadu_si128((__m128i*)Needle.Base);
-            usz NeedleChunkSize = XMM128_SIZE;
             while (HaystackRemaining >= XMM128_SIZE)
             {
                 __m128i HaystackChunk = _mm_loadu_si128((__m128i*)HaystackPtr);
