@@ -13,7 +13,7 @@
 
 #include "tinybase-types.h"
 
-#if defined(NO_CRL)
+#if defined(TT_NO_CRL)
 external
 {
     void* memcpy(void* Dst, const void* Src, size_t SrcSize);
@@ -21,7 +21,7 @@ external
 }
 #else
 #include <string.h>
-#endif //NO_CRL
+#endif //TT_NO_CRL
 
 external void InitBuffersArch(void);
 
@@ -143,9 +143,9 @@ external b32 EqualBuffers(buffer A, buffer B);
 // Arena
 //=================================
 
-#define PushSize(Arena, Size, Type) (Type*)PushIntoArena(Arena, Size);
-#define PushStruct(Arena, Type) (Type*)PushIntoArena(Arena, sizeof(Type));
-#define PushArray(Arena, Count, Type) (Type*)PushIntoArena(Arena, Count * sizeof(Type));
+#define PushSize(Arena, Size, Type) (Type*)PushIntoArena(Arena, Size)
+#define PushStruct(Arena, Type) (Type*)PushIntoArena(Arena, sizeof(Type))
+#define PushArray(Arena, Count, Type) (Type*)PushIntoArena(Arena, Count * sizeof(Type))
 
 external void* PushIntoArena(buffer* Arena, usz Size);
 

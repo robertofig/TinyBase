@@ -57,6 +57,21 @@ static int CPUIDLeaf7a[4] = {0};
 #endif //_M_AMD64 || __X86_64__
 
 //==================================
+// Library imports
+//==================================
+
+#if defined(__cplusplus)
+# define external extern "C"
+#else
+# include <stdbool.h>
+# define external extern
+#endif //__cplusplus
+
+#if !defined(TT_NO_CMATH)
+# include <math.h>
+#endif
+
+//==================================
 // Type defines
 //==================================
 
@@ -108,6 +123,16 @@ typedef int32_t  b32;
 #define U64_MAX 0xFFFFFFFFFFFFFFFF
 #define U64_MAX_DIGITS 20
 
+#if defined(INFINITY)
+# define INF32 INFINITY
+# define INT64 INFINITY
+#else
+union { unsigned int I; float F; } TT_INF32 = { 0x7f800000 };
+union { unsigned long long I; double F; } TT_INF64 = { 0x7FF0000000000000 };
+# define INF32 TT_INF32.F
+# define INF64 TT_INF64.F
+#endif
+
 #if defined(TT_X64) // 64-bits registers.
 # define ISZ_MIN I64_MIN
 # define ISZ_MAX I64_MAX
@@ -125,21 +150,6 @@ typedef int32_t  b32;
 #endif
 
 #define _opt
-
-//==================================
-// Library imports
-//==================================
-
-#if defined(__cplusplus)
-# define external extern "C"
-#else
-# include <stdbool.h>
-# define external extern
-#endif //__cplusplus
-
-#if !defined(TT_NO_CMATH)
-# include <math.h>
-#endif
 
 //==================================
 // Auxiliary functions
