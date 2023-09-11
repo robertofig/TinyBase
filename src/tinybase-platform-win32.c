@@ -1,4 +1,5 @@
 #define _WINSOCKAPI_ // OBS: Prevents windows.h from including winsock.h, so winsock2.h can be used instead.
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <versionhelpers.h>
 

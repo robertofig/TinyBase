@@ -125,10 +125,10 @@ typedef int32_t  b32;
 
 #if defined(INFINITY)
 # define INF32 INFINITY
-# define INT64 INFINITY
+# define INF64 INFINITY
 #else
-union { unsigned int I; float F; } TT_INF32 = { 0x7f800000 };
-union { unsigned long long I; double F; } TT_INF64 = { 0x7FF0000000000000 };
+union { u32 I; f32 F; } TT_INF32 = { 0x7f800000 };
+union { u64 I; f64 F; } TT_INF64 = { 0x7FF0000000000000 };
 # define INF32 TT_INF32.F
 # define INF64 TT_INF64.F
 #endif
