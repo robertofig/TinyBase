@@ -171,7 +171,7 @@ union { u64 I; f64 F; } TT_INF64 = { 0x7FF0000000000000 };
 (I << 8)  & 0xFF00000000     | (I << 24) & 0xFF0000000000      | \
 (I << 40) & 0xFF000000000000 | (I << 56) & 0xFF00000000000000)
 
-static inline i32
+internal inline i32
 GetFirstBitSet(u32 Mask)
 {
     local const i32 MultiplyDeBruijnBitPosition[32] = 
@@ -184,14 +184,14 @@ GetFirstBitSet(u32 Mask)
     return Result;
 }
 
-static inline u32
+internal inline u32
 ClearBit(u32 Value, i32 Bit)
 {
     Value &= ~(1UL << Bit);
     return Value;
 }
 
-static inline f64
+internal inline f64
 Pow(f64 Base, f64 Exponent)
 {
 #if defined(TT_NO_CMATH)
@@ -201,7 +201,7 @@ Pow(f64 Base, f64 Exponent)
 #endif
 }
 
-inline f64
+internal inline f64
 Sin(f64 Angle)
 {
 #if defined(TT_NO_CMATH)
@@ -211,7 +211,7 @@ Sin(f64 Angle)
 #endif
 }
 
-inline f64
+internal inline f64
 Cos(f64 Angle)
 {
 #if defined(TT_NO_CMATH)
@@ -221,7 +221,7 @@ Cos(f64 Angle)
 #endif
 }
 
-inline f64
+internal inline f64
 ACos(f64 Angle)
 {
 #if defined(TT_NO_CMATH)
@@ -231,7 +231,7 @@ ACos(f64 Angle)
 #endif
 }
 
-inline f64
+internal inline f64
 Sqrt(f64 Value)
 {
 #if defined(TT_NO_CMATH)
@@ -241,7 +241,7 @@ Sqrt(f64 Value)
 #endif
 }
 
-inline usz
+internal inline usz
 NumberOfDigits(isz Integer)
 {
     usz Count = 0;
