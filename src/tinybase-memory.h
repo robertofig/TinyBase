@@ -25,9 +25,8 @@ external
 
 external void InitBuffersArch(void);
 
-/* Call this function at the start of the code to use SIMD versions of the
-  |  functions, according to runtime checks. If not called, it falls back
-|  to generic C versions.
+/* Call this function at the start of the code to use SIMD versions of the functions,
+ |  according to runtime checks. If not called, it falls back to generic C versions.
  |--- Return: nothing. */
 
 //=================================
@@ -41,9 +40,9 @@ typedef struct buffer
     usz Size;
 } buffer;
 
-/* Structure used throughout the library. [.Base] is where the buffer starts,
-  |  [.WriteCur] is how much data it currently has, and [.Size] is the full
-  |  space of the buffer. If [.Size] is zero, buffer is read-only. */
+/* Structure used throughout the library. [.Base] is where the buffer starts, [.WriteCur] is
+ |  how much data it currently has, and [.Size] is the full space of the buffer. If [.Size] is
+ |  zero, buffer is read-only. */
 
 external buffer Buffer(void* Ptr, usz WriteCur, usz Size);
 
@@ -68,20 +67,20 @@ external b32 CopyData(void* Dst, usz DstSize, void* Src, usz SrcSize);
 
 external b32 AppendDataToBuffer(void* Src, usz SrcSize, buffer* Dst);
 
-/* Copies [SrcSize] bytes from [Src] into [Dst] from its [.WriteCur], so
- |  long as it fits entirely in the remaining space of [Dst].
+/* Copies [SrcSize] bytes from [Src] into [Dst] from its [.WriteCur], so long as it fits
+ |  entirely in the remaining space of [Dst].
 |--- Return: 1 if successful, 0 if not. */
 
 external b32 AppendBufferToBuffer(buffer Src, buffer* Dst);
 
-/* Copies data from [Src] into [Dst] from its [.WriteCur], so long as it
- |  fits entirely in the remaining space of [Dst].
+/* Copies data from [Src] into [Dst] from its [.WriteCur], so long as it fits entirely in the
+ |  remaining space of [Dst].
 |--- Return: 1 if successful, 0 if not. */
 
 external b32 AppendBufferToBufferNTimes(buffer Src, usz Count, buffer* Dst);
 
-/* Copies data from [Src] into [Dst] from its [.WriteCur], [Count] number
- |  of times, so long as it fits entirely in the remaining space of [Dst].
+/* Copies data from [Src] into [Dst] from its [.WriteCur], [Count] number of times, so long as
+ |  it fits entirely in the remaining space of [Dst].
 |--- Return: 1 if successful, 0 if not. */
 
 external void ReplaceByteInBuffer(u8 OldByte, u8 NewByte, buffer Buf);

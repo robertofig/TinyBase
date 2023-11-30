@@ -234,20 +234,20 @@ external b32 ReplaceCharInString(mb_char Old, mb_char New, string A);
 
 external void AdvanceString(string* Dst, usz NumChars);
 
-/* Modifies [Dst] to advance its [.Base] by [NumChars], and shrink [.WriteCur]
-   |  and [.Size] by the same amount.
+/* Modifies [Dst] to advance its [.Base] by [NumChars], and shrink [.WriteCur] and [.Size] by
+ |  the same amount.
  |--- Return: nothing. */
 
 external b32 AppendArrayToString(void* Src, string* Dst);
 
-/* Appends content of [Src] into [Dst]. [Src] must be zero-terminated, and its content
- |  must fit entirely in [Dst]. Assumes both are in same encoding.
+/* Appends content of [Src] into [Dst]. [Src] must be zero-terminated, and its content must
+ |  fit entirely in [Dst]. Assumes both are in same encoding.
  |--- Return: 1 if successful, 0 if not. */
 
 external b32 AppendCharToString(mb_char Src, string* Dst);
 
-/* Appends multibyte char [Src] into [Dst]. Multibyte must fit entirely in [Dst].
- |  Assumes both are in same encoding.
+/* Appends multibyte char [Src] into [Dst]. Multibyte must fit entirely in [Dst]. Assumes both
+ |  are in same encoding.
 |--- Return: 1 if successful, 0 if not. */
 
 external b32 AppendCharToStringNTimes(mb_char Src, usz Count, string* Dst);
@@ -264,7 +264,7 @@ external b32 AppendDataToString(void* Src, usz SrcSize, string* Dst);
 
 external b32 AppendStringToString(string Src, string* Dst);
 
-/* Appends [Src] into [Dst]. Both need to be in same encoding. [Src] content must fit
+/* Appends [Src] into [Dst]. Both need to be in same encoding. [Src] content must fit 
 |  entirely in [Dst].
  |--- Return: 1 if successful, 0 if not. */
 
@@ -276,21 +276,21 @@ external b32 AppendStringToStringNTimes(string Src, usz Count, string* Dst);
 
 external b32 AppendIntToString(isz Integer, string* Dst);
 
-/* Appends signed integer into [Dst], in the encode specified by [Dst]. String
- |  representation of [Integer] must fit entirely in [Dst].
+/* Appends signed integer into [Dst], in the encode specified by [Dst]. String representation
+ |  of [Integer] must fit entirely in [Dst].
 |--- Return: 1 if successful, 0 if not. */
 
 external b32 AppendUIntToString(usz Integer, string* Dst);
 
-/* Appends unsigned integer into [Dst], in the encode specified by [Dst]. String
- |  representation of [Integer] must fit entirely in [Dst].
+/* Appends unsigned integer into [Dst], in the encode specified by [Dst]. String representation
+ |  of [Integer] must fit entirely in [Dst].
 |--- Return: 1 if successful, 0 if not. */
 
 external b32 AppendFloatToString(f64 Float, usz DecimalPlaces, b32 InScientificNotation, string* Dst);
 
 /* Appends float into [Dst], to [DecimalPlaces] precision, in the encode specified by [Dst].
- |  [InScientificNotation] controls the format (e.g. 0.0045 without, or 4.5e-002 with).
-|  String representation of [Float] must fit entirely in [Dst].
+ |  [InScientificNotation] controls the format (e.g. 0.0045 without, or 4.5e-002 with). String
+ |  representation of [Float] must fit entirely in [Dst].
 |--- Return: 1 if successful, 0 if not. */
 
 
