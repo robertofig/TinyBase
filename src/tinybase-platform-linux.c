@@ -265,11 +265,11 @@ ReadEntireFile(file File)
 }
 
 external b32
-ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, u8* Async)
+ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Async)
 {
     if (AmountToRead <= (Dst->Size - Dst->WriteCur))
     {
-        struct aiocb* Context = (struct aiocb*)Async;
+        struct aiocb* Context = (struct aiocb*)Async->Data;
         Context->aio_fildes = (int)File;
         Context->aio_buf = (void*)Dst->Base;
         Context->aio_nbytes = AmountToRead;
@@ -308,9 +308,9 @@ WriteToFile(file File, buffer Content, usz StartPos)
 }
 
 external b32
-WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, u8* Async)
+WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Async)
 {
-    struct aiocb* Context = (struct aiocb*)Async;
+    struct aiocb* Context = (struct aiocb*)Async->Data;
     Context->aio_fildes = (int)File;
     Context->aio_buf = Src;
     Context->aio_nbytes = AmountToWrite;
@@ -321,9 +321,9 @@ WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, u8* Async)
 }
 
 external b32
-WaitOnIoCompletion(file File, u8* Async, usz* BytesTransferred, b32 Block)
+WaitOnIoCompletion(file File, async* Async, usz* BytesTransferred, b32 Block)
 {
-    struct aiocb* Context = (struct aiocb*)Async;
+    struct aiocb* Context = (struct aiocb*)Async->Data;
     struct timespec* WaitTime = 0;
     if (!Block)
     {

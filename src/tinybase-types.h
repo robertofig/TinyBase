@@ -19,10 +19,12 @@
 # define TT_WINDOWS
 # define MAX_PATH_SIZE 520 // 260 wchar_t elements.
 # define INVALID_FILE USZ_MAX
+# define ASYNC_DATA_SIZE 40 // OVERLAPPED struct.
 #elif defined(__linux__)
 # define TT_LINUX
 # define MAX_PATH_SIZE 4096
 # define INVALID_FILE USZ_MAX
+# define ASYNC_DATA_SIZE 184 // aiocb struct + timespec struct.
 #else // Reserved for other platforms.
 #endif //_WIN32
 
