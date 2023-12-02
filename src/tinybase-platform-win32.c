@@ -247,11 +247,11 @@ ReadEntireFile(file File)
 }
 
 external b32
-ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Async)
+ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, u8* Async)
 {
     if (AmountToRead <= (Dst->Size - Dst->WriteCur))
     {
-        OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
+        OVERLAPPED* Overlapped = (OVERLAPPED*)Async;
         u8* Ptr = Dst->Base + Dst->WriteCur;
         for (usz AmountRead = 0; AmountRead < AmountToRead; )
         {
@@ -310,9 +310,9 @@ WriteToFile(file File, buffer Content, usz StartPos)
 }
 
 external b32
-WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Async)
+WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, u8* Async)
 {
-    OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
+    OVERLAPPED* Overlapped = (OVERLAPPED*)Async;
     
     usz WriteChunk = Min(AmountToWrite, U32_MAX);
     u8* Ptr = (u8*)Src;
@@ -336,11 +336,10 @@ WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Asy
 }
 
 external b32
-WaitOnIoCompletion(async* Async, usz* BytesTransferred, b32 Block)
+WaitOnIoCompletion(file File, u8* Async, usz* BytesTransferred, b32 Block)
 {
-    OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
-    HANDLE File = *((HANDLE*)&Overlapped[1]);
-    return (GetOverlappedResult(File, Overlapped, (LPDWORD)BytesTransferred, Block)
+    OVERLAPPED* Overlapped = (OVERLAPPED*)Async;
+    return (GetOverlappedResult((HANDLE)File, Overlapped, (LPDWORD)BytesTransferred, Block)
             || GetLastError() == ERROR_IO_INCOMPLETE);
 }
 

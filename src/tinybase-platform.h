@@ -92,11 +92,6 @@ external void FreeMemoryFromHeap(buffer* Mem);
 
 typedef usz file;
 
-typedef struct async
-{
-    u8 Data[ASYNC_DATA_SIZE];
-} async;
-
 external file CreateNewFile(void* Filename, i32 Flags);
 
 /* Creates and opens new file at path [Filename]. Path must be at the Unicode encoding native
@@ -128,10 +123,10 @@ external b32 ReadFromFile(file File, buffer* Dst, usz AmountToRead, usz StartPos
  |  function fails.
  |--- Return: 1 if read operation was successfully started, or 0 if not. */
 
-external b32 ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Async);
+external b32 ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, u8* Async);
 
 /* Reads file in non-blocking manner. Memory must already be allocated and passed at [Dst],
- |  with at least [AmountToRead] size. Platform-specific async data for async IO must be passed
+ |  with at least [AmountToRead] size. Platform-specific objects for async IO must be passed
  |  in [Async]. File is read in chunks of U32_MAX, so if [AmountToRead] is larger than that
  |  multiple reads will be posted.
 |--- Return: 1 if read operation was successfully started, or 0 if not. */
@@ -154,18 +149,18 @@ external b32 WriteToFile(file File, buffer Content, usz StartPos);
  |  [StartPos] is ignored and it writes at EOF.
  |--- Return: 1 if successful, or 0 if not. */
 
-external b32 WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Async);
+external b32 WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, u8* Async);
 
 /* Writes [AmounttoWrite] bytes from [Src] at beginning of [File] in non-blocking manner. If
- |  file was opened with APPEND_FILE flag, writes at EOF. Platform-specific data for async IO
+ |  file was opened with APPEND_FILE flag, writes at EOF. Platform-specific objects for async IO
  |  must be passed in [Async]. File is written to in chunks of U32_MAX, so if [AmountToRead] is
  |  larger than that multiple reads will be posted.
  |--- Return: 1 if write operation was successfully started, or 0 if not. */
 
-external b32 WaitOnIoCompletion(async* Async, usz* BytesTransferred, b32 Block);
+external b32 WaitOnIoCompletion(file File, u8* Async, usz* BytesTransferred, b32 Block);
 
 /* Waits until an async IO operation done on [File] completes. [Async] is a pointer to the
- |  same async object used when start the IO.
+ |  same object used when start the IO.
 |--- Return: number of bytes transferred, or 0 in case of failure. */
 
 external usz FileLastWriteTime(file File);
