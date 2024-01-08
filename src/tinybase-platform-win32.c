@@ -216,15 +216,15 @@ ReadFromFile(file File, buffer* Dst, usz AmountToRead, usz StartPos)
             DWORD BytesRead = 0;
             if (!ReadFile((HANDLE)File, Ptr, ReadSize, &BytesRead, NULL))
             {
-                return false;
+                return 0;
             }
             RemainsToRead -= BytesRead;
             Ptr += BytesRead;
         }
         Dst->WriteCur += AmountToRead;
-        return true;
+        return 1;
     }
-    return false;
+    return 0;
 }
 
 external buffer
@@ -261,7 +261,7 @@ ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Asy
             if (!ReadFile((HANDLE)File, Ptr, BytesToRead, NULL, Overlapped)
                 && GetLastError() != ERROR_IO_PENDING)
             {
-                return false;
+                return 0;
             }
             Ptr += BytesToRead;
             AmountRead += BytesToRead;
@@ -269,9 +269,9 @@ ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Asy
         }
         *((file*)&Overlapped[1]) = File;
         Dst->WriteCur += AmountToRead;
-        return true;
+        return 1;
     }
-    return false;
+    return 0;
 }
 
 external b32
@@ -285,12 +285,12 @@ AppendToFile(file File, buffer Content)
         DWORD BytesWritten = 0;
         if (!WriteFile((HANDLE)File, Ptr, WriteSize, &BytesWritten, NULL))
         {
-            return false;
+            return 0;
         }
         RemainsToWrite -= BytesWritten;
         Ptr += BytesWritten;
     }
-    return true;
+    return 1;
 }
 
 external b32
@@ -324,7 +324,7 @@ WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Asy
         if (!WriteFile((HANDLE)File, Ptr, BytesToWrite, 0, Overlapped)
             && GetLastError() != ERROR_IO_PENDING)
         {
-            return false;
+            return 0;
         }
         Ptr += BytesToWrite;
         AmountWritten += BytesToWrite;
@@ -332,15 +332,15 @@ WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Asy
     }
     
     *((file*)&Overlapped[1]) = File;
-    return true;
+    return 1;
 }
 
 external b32
 WaitOnIoCompletion(file File, async* Async, usz* BytesTransferred, b32 Block)
 {
     OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
-    return (GetOverlappedResult(((HANDLE)File, Overlapped, (LPDWORD)BytesTransferred, Block)
-                                || GetLastError() == ERROR_IO_INCOMPLETE);
+    return (GetOverlappedResult(((HANDLE)File, Overlapped, (LPDWORD)BytesTransferred, Block))
+            || GetLastError() == ERROR_IO_INCOMPLETE);
 }
 
 external usz
@@ -489,14 +489,14 @@ MoveUpPath(path* Path, usz MoveUpCount)
 internal b32
 _AppendPathToPath(path Src, path* Dst)
 {
-    b32 Result = true;
+    b32 Result = 1;
     path Tmp = *Dst;
     string Backslash = String(L"\\", sizeof(wchar_t), 0, EC_UTF16LE);
     
     if (Tmp.WriteCur > 0
         && Tmp.Base[Tmp.WriteCur-sizeof(wchar_t)] != '\\')
     {
-        if (!AppendStringToString(Backslash, &Tmp)) return false;
+        if (!AppendStringToString(Backslash, &Tmp)) return 0;
     }
     
     if (Src.Base[0] == '\\' || Src.Base[0] == '/')
@@ -522,8 +522,8 @@ _AppendPathToPath(path Src, path* Dst)
             else
             {
                 string Dir = String(Src.Base + ReadStart, ReadIdx - ReadStart, 0, Src.Enc);
-                if (!AppendStringToString(Dir, &Tmp)) return false;
-                if (!AppendStringToString(Backslash, &Tmp)) return false;
+                if (!AppendStringToString(Dir, &Tmp)) return 0;
+                if (!AppendStringToString(Backslash, &Tmp)) return 0;
             }
             DirCharCount = 0;
             ReadStart = ReadIdx + sizeof(wchar_t);
@@ -540,14 +540,14 @@ _AppendPathToPath(path Src, path* Dst)
     if (DirCharCount > 0)
     {
         string Dir = String(Src.Base + ReadStart, ReadIdx - ReadStart, 0, Src.Enc);
-        if (!AppendStringToString(Dir, &Tmp)) return false;
+        if (!AppendStringToString(Dir, &Tmp)) return 0;
     }
     
     // Makes sure last byte is 0, so array can be passed to path-reading functions.
     *(wchar_t*)(Tmp.Base + Tmp.WriteCur) = '\0';
     
     *Dst = Tmp;
-    return true;
+    return 1;
 }
 
 external b32
@@ -558,7 +558,7 @@ AppendPathToPath(path NewPart, path* Dst)
     {
         return _AppendPathToPath(NewPart, Dst);
     }
-    return false;
+    return 0;
 }
 
 external b32
@@ -673,12 +673,12 @@ ListFiles(iter_dir* Iter)
     {
         FindClose(*File);
         *File = INVALID_HANDLE_VALUE;
-        return false;
+        return 0;
     }
     Iter->Filename = (char*)Data->cFileName;
     Iter->IsDir = Data->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
     
-    return true;
+    return 1;
 }
 
 external _RECURSIVE_ b32
@@ -700,16 +700,16 @@ RemoveDir(void* DirPath, bool RemoveAllFiles)
             
             if (Iter.IsDir)
             {
-                if (!RemoveDir(ScratchPath.Base, true))
+                if (!RemoveDir(ScratchPath.Base, 1))
                 {
-                    return false;
+                    return 0;
                 }
             }
             else
             {
                 if (!RemoveFile(ScratchPath.Base))
                 {
-                    return false;
+                    return 0;
                 }
             }
         }

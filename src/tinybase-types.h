@@ -20,11 +20,13 @@
 # define MAX_PATH_SIZE 520 // 260 wchar_t elements.
 # define INVALID_FILE USZ_MAX
 # define ASYNC_DATA_SIZE 40 // OVERLAPPED struct.
+# define DYNAMIC_LIB_EXT ".dll"
 #elif defined(__linux__)
 # define TT_LINUX
 # define MAX_PATH_SIZE 4096
 # define INVALID_FILE USZ_MAX
 # define ASYNC_DATA_SIZE 184 // aiocb struct + timespec struct.
+# define DYNAMIC_LIB_EXT ".so"
 #else // Reserved for other platforms.
 #endif //_WIN32
 

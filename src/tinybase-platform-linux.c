@@ -809,7 +809,8 @@ UnloadExternalLibrary(file Library)
 //========================================
 
 // TODO: Change method for getting tid to something more reliable.
-pid_t _GetThreadID(file ThreadHandle)
+internal pid_t
+_GetThreadID(file ThreadHandle)
 {
     // This struct is only to cast pthread_t and get the tid.
     struct _pthread_hack_
