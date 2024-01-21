@@ -223,7 +223,7 @@ bool TestCompareBool(buffer A, buffer B, usz AmountToCompare, usz Expected)
     return Expected == CompareBuffers(A, B, AmountToCompare, RETURN_BOOL);
 }
 
-bool TestEquals(buffer A, buffer B, b32 Expected)
+bool TestEquals(buffer A, buffer B, bool Expected)
 {
     return Expected == EqualBuffers(A, B);
 }

@@ -60,28 +60,28 @@ external void AdvanceBuffer(buffer* Buf, usz NumBytes);
    |  and [.Size] by the same amount.
  |--- Return: nothing. */
 
-external b32 CopyData(void* Dst, usz DstSize, void* Src, usz SrcSize);
+external bool CopyData(void* Dst, usz DstSize, void* Src, usz SrcSize);
 
 /* Copies data from [Src] to [Dst], so long as [Src] fits entirely in [Dst].
-|--- Return: 1 if successful, 0 if not. */
+|--- Return: true if successful, false if not. */
 
-external b32 AppendDataToBuffer(void* Src, usz SrcSize, buffer* Dst);
+external bool AppendDataToBuffer(void* Src, usz SrcSize, buffer* Dst);
 
 /* Copies [SrcSize] bytes from [Src] into [Dst] from its [.WriteCur], so long as it fits
  |  entirely in the remaining space of [Dst].
-|--- Return: 1 if successful, 0 if not. */
+|--- Return: true if successful, false if not. */
 
-external b32 AppendBufferToBuffer(buffer Src, buffer* Dst);
+external bool AppendBufferToBuffer(buffer Src, buffer* Dst);
 
 /* Copies data from [Src] into [Dst] from its [.WriteCur], so long as it fits entirely in the
  |  remaining space of [Dst].
-|--- Return: 1 if successful, 0 if not. */
+|--- Return: true if successful, false if not. */
 
-external b32 AppendBufferToBufferNTimes(buffer Src, usz Count, buffer* Dst);
+external bool AppendBufferToBufferNTimes(buffer Src, usz Count, buffer* Dst);
 
 /* Copies data from [Src] into [Dst] from its [.WriteCur], [Count] number of times, so long as
  |  it fits entirely in the remaining space of [Dst].
-|--- Return: 1 if successful, 0 if not. */
+|--- Return: true if successful, false if not. */
 
 external void ReplaceByteInBuffer(u8 OldByte, u8 NewByte, buffer Buf);
 
@@ -132,10 +132,10 @@ external usz CompareBuffers(buffer A, buffer B, usz AmountToCompare, int Flag);
 |  RETURN_PTR_DIFF to [Flags], returns the point where they differ, or the amount compared if not.
 |--- Return: based on return type flag. */
 
-external b32 EqualBuffers(buffer A, buffer B);
+external bool EqualBuffers(buffer A, buffer B);
 
 /* Compares two buffers byte by byte, to see if they are identical in size and content.
- |--- Return: 1 if successful, 0 if not. */
+ |--- Return: true if successful, false if not. */
 
 
 //=================================

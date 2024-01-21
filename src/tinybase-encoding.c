@@ -220,7 +220,7 @@ _UnicodeToUTF16(uchar Char)
     return Result;
 }
 
-internal b32
+internal bool
 _TranscodeUTF16BE(string Src, string* Dst)
 {
     usz StartWriteCur = Dst->WriteCur;
@@ -298,7 +298,7 @@ _UTF32LenCString(string A)
     return Result;
 }
 
-internal b32
+internal bool
 _TranscodeUTF32BE(string Src, string* Dst)
 {
     usz StartWriteCur = Dst->WriteCur;

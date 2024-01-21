@@ -89,7 +89,6 @@ typedef float    f32;
 typedef double   f64;
 typedef size_t   usz;
 typedef intptr_t isz;
-typedef int32_t  b32;
 
 #define internal static
 #define global static
@@ -151,7 +150,7 @@ union { u64 I; f64 F; } TT_INF64 = { 0x7FF0000000000000 };
 # define USZ_MAX_DIGITS U32_MAX_DIGITS
 #endif
 
-#define _opt
+#define _opt // Does nothing, used for documentation.
 
 //==================================
 // Auxiliary functions

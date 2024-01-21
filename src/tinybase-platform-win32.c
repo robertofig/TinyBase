@@ -161,7 +161,7 @@ CloseFileHandle(file File)
     CloseHandle((HANDLE)File);
 }
 
-external b32
+external bool
 RemoveFile(void* Filename)
 {
     if (!DeleteFileW((wchar_t*)Filename))
@@ -172,11 +172,9 @@ RemoveFile(void* Filename)
             SetFileAttributesW((wchar_t*)Filename, FILE_ATTRIBUTE_NORMAL);
             return DeleteFileW((wchar_t*)Filename);
         }
-        if (Error == ERROR_FILE_NOT_FOUND
-            || Error == ERROR_PATH_NOT_FOUND) return 2;
-        return 0;
+        return false;
     }
-    return 1;
+    return true;
 }
 
 external usz
@@ -192,7 +190,7 @@ FileSizeOf(file File)
     return Result;
 }
 
-external b32
+external bool
 SeekFile(file File, usz Pos)
 {
     LONG PosHi = (LONG)(Pos >> 32);
@@ -200,7 +198,7 @@ SeekFile(file File, usz Pos)
     return Result != INVALID_SET_FILE_POINTER;
 }
 
-external b32
+external bool
 ReadFromFile(file File, buffer* Dst, usz AmountToRead, usz StartPos)
 {
     usz FileSize = FileSizeOf(File);
@@ -216,15 +214,15 @@ ReadFromFile(file File, buffer* Dst, usz AmountToRead, usz StartPos)
             DWORD BytesRead = 0;
             if (!ReadFile((HANDLE)File, Ptr, ReadSize, &BytesRead, NULL))
             {
-                return 0;
+                return false;
             }
             RemainsToRead -= BytesRead;
             Ptr += BytesRead;
         }
         Dst->WriteCur += AmountToRead;
-        return 1;
+        return true;
     }
-    return 0;
+    return false;
 }
 
 external buffer
@@ -246,7 +244,7 @@ ReadEntireFile(file File)
     return Mem;
 }
 
-external b32
+external bool
 ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Async)
 {
     if (AmountToRead <= (Dst->Size - Dst->WriteCur))
@@ -261,7 +259,7 @@ ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Asy
             if (!ReadFile((HANDLE)File, Ptr, BytesToRead, NULL, Overlapped)
                 && GetLastError() != ERROR_IO_PENDING)
             {
-                return 0;
+                return false;
             }
             Ptr += BytesToRead;
             AmountRead += BytesToRead;
@@ -269,12 +267,12 @@ ReadFileAsync(file File, buffer* Dst, usz AmountToRead, usz StartPos, async* Asy
         }
         *((file*)&Overlapped[1]) = File;
         Dst->WriteCur += AmountToRead;
-        return 1;
+        return true;
     }
-    return 0;
+    return false;
 }
 
-external b32
+external bool
 AppendToFile(file File, buffer Content)
 {
     usz RemainsToWrite = Content.WriteCur;
@@ -285,31 +283,31 @@ AppendToFile(file File, buffer Content)
         DWORD BytesWritten = 0;
         if (!WriteFile((HANDLE)File, Ptr, WriteSize, &BytesWritten, NULL))
         {
-            return 0;
+            return false;
         }
         RemainsToWrite -= BytesWritten;
         Ptr += BytesWritten;
     }
-    return 1;
+    return true;
 }
 
-external b32
+external bool
 WriteEntireFile(file File, buffer Content)
 {
     SeekFile(File, 0);
-    b32 Result = AppendToFile(File, Content);
+    bool Result = AppendToFile(File, Content);
     return Result;
 }
 
-external b32
+external bool
 WriteToFile(file File, buffer Content, usz StartPos)
 {
     SeekFile(File, StartPos);
-    b32 Result = AppendToFile(File, Content);
+    bool Result = AppendToFile(File, Content);
     return Result;
 }
 
-external b32
+external bool
 WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Async)
 {
     OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
@@ -324,7 +322,7 @@ WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Asy
         if (!WriteFile((HANDLE)File, Ptr, BytesToWrite, 0, Overlapped)
             && GetLastError() != ERROR_IO_PENDING)
         {
-            return 0;
+            return false;
         }
         Ptr += BytesToWrite;
         AmountWritten += BytesToWrite;
@@ -332,15 +330,16 @@ WriteFileAsync(file File, void* Src, usz AmountToWrite, usz StartPos, async* Asy
     }
     
     *((file*)&Overlapped[1]) = File;
-    return 1;
+    return true;
 }
 
-external b32
-WaitOnIoCompletion(file File, async* Async, usz* BytesTransferred, b32 Block)
+external usz
+WaitOnIoCompletion(file File, async* Async, bool Block)
 {
+    DWORD BytesTransferred = 0;
     OVERLAPPED* Overlapped = (OVERLAPPED*)Async->Data;
-    return (GetOverlappedResult(((HANDLE)File, Overlapped, (LPDWORD)BytesTransferred, Block))
-            || GetLastError() == ERROR_IO_INCOMPLETE);
+    GetOverlappedResult((HANDLE)File, Overlapped, &BytesTransferred, Block);
+    return BytesTransferred;
 }
 
 external usz
@@ -355,10 +354,10 @@ FileLastWriteTime(file File)
     return Result;
 }
 
-external b32
+external bool
 FilesAreEqual(file A, file B)
 {
-    b32 Result = 0;
+    bool Result = false;
     
     usz ASize = FileSizeOf(A);
     usz BSize = FileSizeOf(B);
@@ -372,64 +371,45 @@ FilesAreEqual(file A, file B)
             FreeMemory(&ABuf);
             FreeMemory(&BBuf);
         }
-        else
-        {
-            Result = 2;
-        }
     }
     
     return Result;
 }
 
-external b32
+external bool
 DuplicateFile(void* SrcPath, void* DstPath, bool OverwriteIfExists)
 {
-    if (!CopyFileW((wchar_t*)SrcPath, (wchar_t*)DstPath, !OverwriteIfExists))
-    {
-        int Error = GetLastError();
-        if (Error == ERROR_FILE_NOT_FOUND) return 2;
-        if (Error == ERROR_PATH_NOT_FOUND) return 3;
-        if (Error == ERROR_FILE_EXISTS) return 4;
-        return 0;
-    }
-    return 1;
+    bool Result = CopyFileW((wchar_t*)SrcPath, (wchar_t*)DstPath, !OverwriteIfExists);
+    return Result;
 }
 
-external b32
+external bool
 ChangeFileLocation(void* SrcPath, void* DstPath)
 {
-    if (!MoveFileW((wchar_t*)SrcPath, (wchar_t*)DstPath))
-    {
-        int Error = GetLastError();
-        if (Error == ERROR_FILE_NOT_FOUND) return 2;
-        if (Error == ERROR_PATH_NOT_FOUND) return 3;
-        if (Error == ERROR_ALREADY_EXISTS) return 4;
-        return 0;
-    }
-    return 1;
+    bool Result = MoveFileW((wchar_t*)SrcPath, (wchar_t*)DstPath);
+    return Result;
 }
 
-external b32
+external bool
 IsFileHidden(void* Filename)
 {
     DWORD Result = GetFileAttributesW((wchar_t*)Filename);
-    if (Result == INVALID_FILE_ATTRIBUTES) return 2;
-    return Result & FILE_ATTRIBUTE_HIDDEN;
+    return (Result & FILE_ATTRIBUTE_HIDDEN);
 }
 
 //========================================
 // Filesystem
 //========================================
 
-external b32
+external bool
 IsExistingPath(void* Path)
 {
     // Assumes [Path] is in UTF-16LE.
     DWORD Attributes = GetFileAttributesW((wchar_t*)Path);
-    return Attributes != INVALID_FILE_ATTRIBUTES;
+    return (Attributes != INVALID_FILE_ATTRIBUTES);
 }
 
-external b32
+external bool
 IsExistingDir(void* Path)
 {
     // Assumes [Path] is in UTF-16LE.
@@ -460,7 +440,7 @@ PathLit(void* CString)
     return Result;
 }
 
-external b32
+external bool
 MoveUpPath(path* Path, usz MoveUpCount)
 {
     wchar_t* LastChar = (wchar_t*)(Path->Base + Path->WriteCur) - 1;
@@ -483,20 +463,20 @@ MoveUpPath(path* Path, usz MoveUpCount)
     {
         Path->WriteCur += sizeof(wchar_t);
     }
-    return Path->WriteCur != CurrentWriteCur;
+    
+    return (Path->WriteCur != CurrentWriteCur);
 }
 
-internal b32
+internal bool
 _AppendPathToPath(path Src, path* Dst)
 {
-    b32 Result = 1;
     path Tmp = *Dst;
     string Backslash = String(L"\\", sizeof(wchar_t), 0, EC_UTF16LE);
     
     if (Tmp.WriteCur > 0
         && Tmp.Base[Tmp.WriteCur-sizeof(wchar_t)] != '\\')
     {
-        if (!AppendStringToString(Backslash, &Tmp)) return 0;
+        if (!AppendStringToString(Backslash, &Tmp)) return false;
     }
     
     if (Src.Base[0] == '\\' || Src.Base[0] == '/')
@@ -506,7 +486,7 @@ _AppendPathToPath(path Src, path* Dst)
     
     wchar_t C0 = 0, C1 = 0, C2 = 0;
     usz ReadIdx = 0, DirCharCount = 0, ReadStart = 0;
-    while (ReadIdx < Src.WriteCur && Result == 1)
+    while (ReadIdx < Src.WriteCur)
     {
         C0 = C1;
         C1 = C2;
@@ -522,8 +502,8 @@ _AppendPathToPath(path Src, path* Dst)
             else
             {
                 string Dir = String(Src.Base + ReadStart, ReadIdx - ReadStart, 0, Src.Enc);
-                if (!AppendStringToString(Dir, &Tmp)) return 0;
-                if (!AppendStringToString(Backslash, &Tmp)) return 0;
+                if (!AppendStringToString(Dir, &Tmp)) return false;
+                if (!AppendStringToString(Backslash, &Tmp)) return false;
             }
             DirCharCount = 0;
             ReadStart = ReadIdx + sizeof(wchar_t);
@@ -540,17 +520,17 @@ _AppendPathToPath(path Src, path* Dst)
     if (DirCharCount > 0)
     {
         string Dir = String(Src.Base + ReadStart, ReadIdx - ReadStart, 0, Src.Enc);
-        if (!AppendStringToString(Dir, &Tmp)) return 0;
+        if (!AppendStringToString(Dir, &Tmp)) return false;
     }
     
     // Makes sure last byte is 0, so array can be passed to path-reading functions.
     *(wchar_t*)(Tmp.Base + Tmp.WriteCur) = '\0';
     
     *Dst = Tmp;
-    return 1;
+    return true;
 }
 
-external b32
+external bool
 AppendPathToPath(path NewPart, path* Dst)
 {
     if (NewPart.Enc == Dst->Enc
@@ -558,10 +538,10 @@ AppendPathToPath(path NewPart, path* Dst)
     {
         return _AppendPathToPath(NewPart, Dst);
     }
-    return 0;
+    return false;
 }
 
-external b32
+external bool
 AppendStringToPath(string NewPart, path* Dst)
 {
     if (NewPart.Enc != Dst->Enc)
@@ -577,7 +557,7 @@ AppendStringToPath(string NewPart, path* Dst)
     }
 }
 
-external b32
+external bool
 AppendDataToPath(void* NewPart, usz NewPartSize, path* Dst)
 {
     // OBS: Assumes [NewPart] is in UTF-16LE.
@@ -586,7 +566,7 @@ AppendDataToPath(void* NewPart, usz NewPartSize, path* Dst)
     return _AppendPathToPath(NewPartPath, Dst);
 }
 
-external b32
+external bool
 AppendArrayToPath(void* NewPart, path* Dst)
 {
     // OBS: Assumes [NewPart] is in UTF-16LE.
@@ -594,7 +574,7 @@ AppendArrayToPath(void* NewPart, path* Dst)
     return _AppendPathToPath(NewPartPath, Dst);
 }
 
-external b32
+external bool
 AppendCWDToPath(path* Dst)
 {
     char CWD[MAX_PATH_SIZE] = {0};
@@ -608,20 +588,16 @@ AppendCWDToPath(path* Dst)
     return _AppendPathToPath(CWDPath, Dst);
 }
 
-external b32
+external bool
 MakeDir(void* DirPath)
 {
     // Assumes [DirPath] is in UTF-16LE.
     
-    b32 Result = CreateDirectoryW((wchar_t*)DirPath, NULL);
+    bool Result = CreateDirectoryW((wchar_t*)DirPath, NULL);
     if (!Result)
     {
         int Error = GetLastError();
-        if (Error == ERROR_ALREADY_EXISTS)
-        {
-            Result = 2;
-        }
-        else if (Error == ERROR_PATH_NOT_FOUND)
+        if (Error == ERROR_PATH_NOT_FOUND)
         {
             char WorkPathBuf[MAX_PATH_SIZE] = {0};
             path WorkPath = Path(WorkPathBuf);
@@ -658,7 +634,7 @@ InitIterDir(iter_dir* Iter, path DirPath)
     AppendDataToPath(L"*", sizeof(wchar_t), &Iter->AllFiles);
 }
 
-external b32
+external bool
 ListFiles(iter_dir* Iter)
 {
     HANDLE* File = (HANDLE*)&Iter->OSData[0];
@@ -673,15 +649,15 @@ ListFiles(iter_dir* Iter)
     {
         FindClose(*File);
         *File = INVALID_HANDLE_VALUE;
-        return 0;
+        return false;
     }
     Iter->Filename = (char*)Data->cFileName;
     Iter->IsDir = Data->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
     
-    return 1;
+    return true;
 }
 
-external _RECURSIVE_ b32
+external _RECURSIVE_ bool
 RemoveDir(void* DirPath, bool RemoveAllFiles)
 {
     // Assumes [DirPath] is in UTF-16LE.
@@ -700,36 +676,23 @@ RemoveDir(void* DirPath, bool RemoveAllFiles)
             
             if (Iter.IsDir)
             {
-                if (!RemoveDir(ScratchPath.Base, 1))
-                {
-                    return 0;
-                }
+                return RemoveDir(ScratchPath.Base, 1);
             }
             else
             {
-                if (!RemoveFile(ScratchPath.Base))
-                {
-                    return 0;
-                }
+                return RemoveFile(ScratchPath.Base);
             }
         }
     }
     return RemoveDirectoryW((wchar_t*)DirPath);
 }
 
-external b32
+external bool
 ChangeDirLocation(void* SrcPath, void* DstPath)
 {
     // Assumes [SrcPath] and [DstPath] are in UTF-16LE.
-    if (!MoveFileW((wchar_t*)SrcPath, (wchar_t*)DstPath))
-    {
-        int Error = GetLastError();
-        if (Error == ERROR_FILE_NOT_FOUND) return 2;
-        if (Error == ERROR_PATH_NOT_FOUND) return 3;
-        if (Error == ERROR_ALREADY_EXISTS) return 4;
-        return 0;
-    }
-    return 1;
+    bool Result = MoveFileW((wchar_t*)SrcPath, (wchar_t*)DstPath);
+    return Result;
 }
 
 //========================================
@@ -795,7 +758,7 @@ LoadExternalSymbol(file Library, char* SymbolName)
     return Symbol;
 }
 
-external b32
+external bool
 UnloadExternalLibrary(file Library)
 {
     return FreeLibrary((HMODULE)Library);
@@ -806,15 +769,16 @@ UnloadExternalLibrary(file Library)
 //========================================
 
 external thread
-ThreadCreate(thread_proc ThreadProc, void* ThreadArg, b32 Waitable)
+ThreadCreate(thread_proc ThreadProc, void* ThreadArg, bool Waitable)
 {
     // [Waitable] does nothing on Windows.
     thread Result = {0};
-    Result.Handle = (file)CreateThread(NULL, Megabyte(2), (LPTHREAD_START_ROUTINE)ThreadProc, ThreadArg, 0, 0);
+    Result.Handle = (file)CreateThread(NULL, Megabyte(2), (LPTHREAD_START_ROUTINE)ThreadProc,
+                                       ThreadArg, 0, 0);
     return Result;
 }
 
-external b32
+external bool
 ThreadChangeScheduling(thread* Thread, int NewScheduling)
 {
     DWORD Priority = NewScheduling * NORMAL_PRIORITY_CLASS;
@@ -838,34 +802,34 @@ ThreadGetScheduling(thread Thread)
     }
 }
 
-external b32
+external bool
 ThreadClose(thread* Thread)
 {
     // Function currently is a stub, to be expanded in the future.
     CloseHandle((HANDLE)Thread->Handle);
-    return 1;
+    return true;
 }
 
-external b32
+external bool
 ThreadWait(thread* Thread)
 {
     if (WaitForSingleObject((HANDLE)Thread->Handle, INFINITE) != WAIT_FAILED)
     {
         ThreadClose(Thread);
-        return 1;
+        return true;
     }
-    return 0;
+    return false;
 }
 
-external b32
+external bool
 ThreadKill(thread* Thread)
 {
     if (TerminateThread((HANDLE)Thread->Handle, 0))
     {
         ThreadClose(Thread);
-        return 1;
+        return true;
     }
-    return 0;
+    return false;
 }
 
 //========================================
@@ -875,21 +839,21 @@ ThreadKill(thread* Thread)
 external i16
 AtomicExchange16(void* volatile Dst, i16 Value)
 {
-    i16 OldValue = InterlockedExchange16((i16*)Dst, Value);
+    i16 OldValue = (i16)InterlockedExchange16((SHORT*)Dst, Value);
     return OldValue;
 }
 
 external i32
 AtomicExchange32(void* volatile Dst, i32 Value)
 {
-    i32 OldValue = InterlockedExchange((long*)Dst, (long)Value);
+    i32 OldValue = InterlockedExchange((LONG*)Dst, Value);
     return OldValue;
 }
 
 external i64
 AtomicExchange64(void* volatile Dst, i64 Value)
 {
-    i64 OldValue = InterlockedExchange64((i64*)Dst, Value);
+    i64 OldValue = InterlockedExchange64((LONG64*)Dst, Value);
     return OldValue;
 }
 

@@ -27,7 +27,7 @@ AdvanceBuffer(buffer* Buf, usz NumBytes)
     Buf->WriteCur -= NumBytes;
 }
 
-external b32
+external bool
 CopyData(void* Dst, usz DstSize, void* Src, usz SrcSize)
 {
     if (DstSize >= SrcSize)
@@ -38,10 +38,10 @@ CopyData(void* Dst, usz DstSize, void* Src, usz SrcSize)
     return false;
 }
 
-external b32
+external bool
 AppendDataToBuffer(void* Src, usz SrcSize, buffer* Dst)
 {
-    b32 Result = CopyData(Dst->Base + Dst->WriteCur, Dst->Size - Dst->WriteCur, Src, SrcSize);
+    bool Result = CopyData(Dst->Base + Dst->WriteCur, Dst->Size - Dst->WriteCur, Src, SrcSize);
     if (Result)
     {
         Dst->WriteCur += SrcSize;
@@ -49,11 +49,11 @@ AppendDataToBuffer(void* Src, usz SrcSize, buffer* Dst)
     return Result;
 }
 
-external b32
+external bool
 AppendBufferToBuffer(buffer Src, buffer* Dst)
 {
-    b32 Result = CopyData(Dst->Base + Dst->WriteCur, Dst->Size - Dst->WriteCur,
-                          Src.Base, Src.WriteCur);
+    bool Result = CopyData(Dst->Base + Dst->WriteCur, Dst->Size - Dst->WriteCur,
+                           Src.Base, Src.WriteCur);
     if (Result)
     {
         Dst->WriteCur += Src.WriteCur;
@@ -61,7 +61,7 @@ AppendBufferToBuffer(buffer Src, buffer* Dst)
     return Result;
 }
 
-external b32
+external bool
 AppendBufferToBufferNTimes(buffer Src, usz Count, buffer* Dst)
 {
     usz TotalSizeToWrite = Src.WriteCur * Count;
@@ -116,7 +116,7 @@ _CompareIdx(buffer A, buffer B, usz AmountToCompare)
     return Result - (usz)A.Base;
 }
 
-internal b32
+internal bool
 _CompareBool(buffer A, buffer B, usz AmountToCompare)
 {
     usz Result = _CompareIdx(A, B, AmountToCompare);
@@ -131,7 +131,7 @@ CompareBuffers(buffer A, buffer B, usz AmountToCompare, int Flag)
             :                          _ComparePtr(A.Base, B.Base, AmountToCompare));
 }
 
-external b32
+external bool
 EqualBuffers(buffer A, buffer B)
 {
     if (A.WriteCur == B.WriteCur)
