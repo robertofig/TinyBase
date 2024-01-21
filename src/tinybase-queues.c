@@ -1,22 +1,25 @@
+//================
+// MPSC Free List
+//================
 
 external void
-InitMPSCQueue(mpsc_queue* Queue)
+InitMPSCFreeList(mpsc_freelist* Queue)
 {
     Queue->Head = &Queue->Stub;
     Queue->Tail = &Queue->Stub;
 }
 
 external void
-MPSCQueuePush(mpsc_queue* Queue, void* Element)
+MPSCFreeListPush(mpsc_freelist* Queue, void* Item)
 {
-    mpsc_node* Node = (mpsc_node*)Element;
+    mpsc_node* Node = (mpsc_node*)Item;
     Node->Next = NULL;
     mpsc_node* Prev = (mpsc_node*)AtomicExchangePtr((void* volatile*)&Queue->Head, Node);
     Prev->Next = Node;
 }
 
 external mpsc_node*
-MPSCQueuePop(mpsc_queue* Queue)
+MPSCFreeListPop(mpsc_freelist* Queue)
 {
     mpsc_node* Tail = Queue->Tail;
     mpsc_node* Next = Tail->Next;
@@ -39,7 +42,7 @@ MPSCQueuePop(mpsc_queue* Queue)
     mpsc_node* Head = Queue->Head;
     if (Tail != Head) return NULL;
     
-    MPSCQueuePush(Queue, &Queue->Stub);
+    MPSCFreeListPush(Queue, &Queue->Stub);
     Next = Tail->Next;
     
     if (Next)
@@ -49,4 +52,46 @@ MPSCQueuePop(mpsc_queue* Queue)
     }
     
     return NULL;
+}
+
+
+//==================
+// MPMC Ring Buffer
+//==================
+
+external mpmc_ringbuf
+InitMPMCRingBuffer(void** Ring, usz RingSize)
+{
+    mpmc_ringbuf Result = {0};
+    if (Ring)
+    {
+        RingSize = RoundDownToPow2(RingSize);
+        Result.Ring = Ring;
+        Result.RingSize = RingSize - 1;
+    }
+    return Result;
+}
+
+external bool
+MPMCRingBufferPush(mpmc_ringbuf* Queue, void* Item)
+{
+    if (AtomicCompareExchangePtr(&Queue->Ring[Queue->WriteCur & Queue->RingSize], 0, Item))
+    {
+        AtomicAddFetchIsz(&Queue->WriteCur, 1);
+        return true;
+    }
+    return false;
+}
+
+external void*
+MPMCRingBufferPop(mpmc_ringbuf* Queue)
+{
+    void* Item = Queue->Ring[Queue->ReadCur & Queue->RingSize];
+    if (Item
+        && AtomicCompareExchangePtr(&Queue->Ring[Queue->ReadCur & Queue->RingSize], Item, 0))
+    {
+        AtomicAddFetchIsz(&Queue->ReadCur, 1);
+        return Item;
+    }
+    return 0;
 }

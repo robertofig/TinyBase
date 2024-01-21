@@ -832,34 +832,3 @@ ThreadKill(thread* Thread)
     return false;
 }
 
-//========================================
-// Atomic
-//========================================
-
-external i16
-AtomicExchange16(void* volatile Dst, i16 Value)
-{
-    i16 OldValue = (i16)InterlockedExchange16((SHORT*)Dst, Value);
-    return OldValue;
-}
-
-external i32
-AtomicExchange32(void* volatile Dst, i32 Value)
-{
-    i32 OldValue = InterlockedExchange((LONG*)Dst, Value);
-    return OldValue;
-}
-
-external i64
-AtomicExchange64(void* volatile Dst, i64 Value)
-{
-    i64 OldValue = InterlockedExchange64((LONG64*)Dst, Value);
-    return OldValue;
-}
-
-external void*
-AtomicExchangePtr(void* volatile* Dst, void* Value)
-{
-    void* OldValue = InterlockedExchangePointer(Dst, Value);
-    return OldValue;
-}

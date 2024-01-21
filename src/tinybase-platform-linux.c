@@ -885,35 +885,3 @@ ThreadKill(thread* Thread)
     }
     return false;
 }
-
-//========================================
-// Atomic
-//========================================
-
-external i16
-AtomicExchange16(void* volatile Dst, i16 Value)
-{
-    i16 OldValue = __atomic_exchange_n((i16*)Dst, Value, __ATOMIC_ACQ_REL);
-    return OldValue;
-}
-
-external i32
-AtomicExchange32(void* volatile Dst, i32 Value)
-{
-    i32 OldValue = __atomic_exchange_n((i32*)Dst, Value, __ATOMIC_ACQ_REL);
-    return OldValue;
-}
-
-external i64
-AtomicExchange64(void* volatile Dst, i64 Value)
-{
-    i64 OldValue = __atomic_exchange_n((i64*)Dst, Value, __ATOMIC_ACQ_REL);
-    return OldValue;
-}
-
-external void*
-AtomicExchangePtr(void* volatile* Dst, void* Value)
-{
-    void* OldValue = __atomic_exchange_n(Dst, Value, __ATOMIC_ACQ_REL);
-    return OldValue;
-}

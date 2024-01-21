@@ -34,6 +34,8 @@
 # define TT_CLANG
 #elif defined(_MSC_VER)
 # define TT_MSVC
+#elif defined(__GNUC__)
+# define TT_GCC
 #else // Reserved for other compilers.
 #endif //__clang__
 
@@ -152,6 +154,7 @@ union { u64 I; f64 F; } TT_INF64 = { 0x7FF0000000000000 };
 
 #define _opt // Does nothing, used for documentation.
 
+
 //==================================
 // Auxiliary functions
 //==================================
@@ -175,6 +178,7 @@ union { u64 I; f64 F; } TT_INF64 = { 0x7FF0000000000000 };
 internal inline i32
 GetFirstBitSet(u32 Mask)
 {
+    // Source: https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2Float
     local const i32 MultiplyDeBruijnBitPosition[32] = 
     {
         0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 
@@ -183,6 +187,18 @@ GetFirstBitSet(u32 Mask)
     
     i32 Result = MultiplyDeBruijnBitPosition[((u32)((Mask & -Mask) * 0x077CB531U)) >> 27];
     return Result;
+}
+
+internal inline usz
+RoundDownToPow2(i32 Value)
+{
+#if defined(TT_MSVC)
+    i32 TrailingZero = 64-__lzcnt(Value);
+#elif defined(TT_GCC)
+    i32 TrailingZero = 64-__builtin_clzl(Value);
+#else // Reserved for other compiler intrinsics. 
+#endif
+    return (usz)(1 << (TrailingZero-1));
 }
 
 internal inline u32

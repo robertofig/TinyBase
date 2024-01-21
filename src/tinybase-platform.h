@@ -489,31 +489,6 @@ external bool ThreadKill(thread* Thread);
  |--- Return: true if successful, false if not. */
 
 
-//========================================
-// Atomic
-//========================================
-
-external i16 AtomicExchange16(void* volatile Dst, i16 Value);
-
-/* Saves 16-bit [Value] into [Dst] in a thread-safe manner, and returns previous value.
-|--- Result: 16-bit value at [Dst] before function call. */
-
-external i32 AtomicExchange32(void* volatile Dst, i32 Value);
-
-/* Saves 32-bit [Value] into [Dst] in a thread-safe manner, and returns previous value.
-|--- Result: 32-bit value at [Dst] before function call. */
-
-external i64 AtomicExchange64(void* volatile Dst, i64 Value);
-
-/* Saves 64-bit [Value] into [Dst] in a thread-safe manner, and returns previous value.
-|--- Result: 64-bit value at [Dst] before function call. */
-
-external void* AtomicExchangePtr(void* volatile* Dst, void* Value);
-
-/* Saves pointer [Value] into [Dst] in a thread-safe manner, and returns previous value.
-|--- Result: pointer address at [Dst] before function call. */
-
-
 #if !defined(TT_STATIC_LINKING)
 # if defined(TT_WINDOWS)
 #  include "tinybase-platform-win32.c"
