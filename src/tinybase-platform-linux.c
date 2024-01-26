@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/fs.h>
+#include <linux/version.h>
 #include <pthread.h>
 #include <sched.h>
 #include <signal.h>

@@ -451,10 +451,10 @@ external thread ThreadCreate(thread_proc ThreadProc, void* ThreadArg, bool Waita
 
 /* Creates a new thread. [ThreadProc] specifies the entry point, and should be a function of
  |  type thread_proc. [ThreadArg] is the parameter passed to the function pointed to at
- |  [ThreadProc]. [Waitable] determines how to close the thread; if 1, the parent thread must
- |  wait on the child thread with ThreadWait() to close it; otherwise it must call
+ |  [ThreadProc]. [Waitable] determines how to close the thread; if true, the parent thread
+ |  must wait on the child thread with ThreadWait() to close it; otherwise it must call
  |  ThreadClose() explicitly after it knows the thread has finished.
-|--- Return: thread object, or NULL if creation failed. */
+|--- Return: thread object, or empty object if creation failed. */
 
 external bool ThreadChangeScheduling(thread* Thread, int NewScheduling);
 
