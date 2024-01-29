@@ -70,7 +70,7 @@ external mpsc_node* MPSCFreeListPop(mpsc_freelist* Queue);
 typedef struct mpmc_ringbuf
 {
     void** Ring;
-    usz RingSize;
+    usz MaxCur;
     usz ReadCur;
     usz WriteCur;
 } mpmc_ringbuf;

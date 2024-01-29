@@ -67,7 +67,7 @@ InitMPMCRingBuffer(void** Ring, usz RingSize)
     {
         RingSize = RoundDownToPow2(RingSize);
         Result.Ring = Ring;
-        Result.RingSize = RingSize - 1;
+        Result.MaxCur = (RingSize / sizeof(void*)) - 1;
     }
     return Result;
 }
@@ -75,7 +75,7 @@ InitMPMCRingBuffer(void** Ring, usz RingSize)
 external bool
 MPMCRingBufferPush(mpmc_ringbuf* Queue, void* Item)
 {
-    if (AtomicCompareExchangePtr(&Queue->Ring[Queue->WriteCur & Queue->RingSize], 0, Item))
+    if (AtomicCompareExchangePtr(&Queue->Ring[Queue->WriteCur & Queue->MaxCur], 0, Item))
     {
         AtomicAddFetchIsz(&Queue->WriteCur, 1);
         return true;
@@ -86,9 +86,9 @@ MPMCRingBufferPush(mpmc_ringbuf* Queue, void* Item)
 external void*
 MPMCRingBufferPop(mpmc_ringbuf* Queue)
 {
-    void* Item = Queue->Ring[Queue->ReadCur & Queue->RingSize];
+    void* Item = Queue->Ring[Queue->ReadCur & Queue->MaxCur];
     if (Item
-        && AtomicCompareExchangePtr(&Queue->Ring[Queue->ReadCur & Queue->RingSize], Item, 0))
+        && AtomicCompareExchangePtr(&Queue->Ring[Queue->ReadCur & Queue->MaxCur], Item, 0))
     {
         AtomicAddFetchIsz(&Queue->ReadCur, 1);
         return Item;
