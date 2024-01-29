@@ -156,10 +156,10 @@ external f64 StringToFloat(string Src);
  |
 | RETURN_BOOL        Returns 1 if query was successful, 0 if not.
 | RETURN_IDX_FIND    Returns offset into first byte of instance found, or INVALID_IDX if none.
- | RETURN_IDX_AFTER   Returns offset one byte after first instance found, or INVALID_IDX if none.
+ | RETURN_IDX_AFTER   Returns offset one mb_char after first instance found, or INVALID_IDX if none.
  | RETURN_IDX_DIFF    Returns offset where two buffers start to differ, or the length if they don't.
  | RETURN_PTR_FIND    Returns pointer of first byte of instance found, or NULL if none.
- | RETURN_PTR_AFTER   Returns pointer one byte after first instance found, or INVALID_IDX if none.
+ | RETURN_PTR_AFTER   Returns pointer one mb_char after first instance found, or INVALID_IDX if none.
  | RETURN_PTR_DIFF    Returns pointer where two buffers start to differ, or the length if they don't.
  | SEARCH_REVERSE     Performs query backwards from the end of buffers. */
 
