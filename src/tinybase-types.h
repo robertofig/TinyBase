@@ -12,26 +12,34 @@
 #include <float.h>
 
 //==================================
-// Platform and compiler defines
+// Platform defines
 //==================================
 
 #if defined(_WIN32)
 # define TT_WINDOWS
 # define MAX_PATH_SIZE 520 // 260 wchar_t elements.
 # define INVALID_FILE USZ_MAX
-# define ASYNC_DATA_SIZE 48 // OVERLAPPED struct + HANDLE.
+# define ASYNC_DATA_SIZE 40 // OVERLAPPED struct.
+# define DYNAMIC_LIB_EXT ".dll"
 #elif defined(__linux__)
 # define TT_LINUX
 # define MAX_PATH_SIZE 4096
 # define INVALID_FILE USZ_MAX
 # define ASYNC_DATA_SIZE 184 // aiocb struct + timespec struct.
+# define DYNAMIC_LIB_EXT ".so"
 #else // Reserved for other platforms.
 #endif //_WIN32
+
+//==================================
+// Compiler defines
+//==================================
 
 #if defined(__clang__)
 # define TT_CLANG
 #elif defined(_MSC_VER)
 # define TT_MSVC
+#elif defined(__GNUC__)
+# define TT_GCC
 #else // Reserved for other compilers.
 #endif //__clang__
 
@@ -52,8 +60,7 @@
 # define XMM256_LAST_IDX 0x1F
 static int CPUIDLeaf1[4] = {0};
 static int CPUIDLeaf7a[4] = {0};
-#else
-// Reserved for other architectures.
+#else // Reserved for other architectures.
 #endif //_M_AMD64 || __X86_64__
 
 //==================================
@@ -87,11 +94,21 @@ typedef float    f32;
 typedef double   f64;
 typedef size_t   usz;
 typedef intptr_t isz;
-typedef int32_t  b32;
 
 #define internal static
 #define global static
 #define local static
+
+#if defined(__cplusplus) && (__cplusplus >= 201103)
+// Type already defined.
+#else
+# if defined(TT_GCC) || defined(TT_CLANG)
+#  define thread_local __thread
+# elif defined(TT_MSVC)
+#  define thread_local __declspec( thread )
+# else // Reserved for other compilers.
+# endif
+#endif
 
 #define Kilobyte(Number) Number * 1024ULL
 #define Megabyte(Number) Number * 1024ULL * 1024ULL
@@ -149,7 +166,8 @@ union { u64 I; f64 F; } TT_INF64 = { 0x7FF0000000000000 };
 # define USZ_MAX_DIGITS U32_MAX_DIGITS
 #endif
 
-#define _opt
+#define _opt // Does nothing, used for documentation.
+
 
 //==================================
 // Auxiliary functions
@@ -171,9 +189,10 @@ union { u64 I; f64 F; } TT_INF64 = { 0x7FF0000000000000 };
 (I << 8)  & 0xFF00000000     | (I << 24) & 0xFF0000000000      | \
 (I << 40) & 0xFF000000000000 | (I << 56) & 0xFF00000000000000)
 
-static inline i32
+internal inline i32
 GetFirstBitSet(u32 Mask)
 {
+    // Source: https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2Float
     local const i32 MultiplyDeBruijnBitPosition[32] = 
     {
         0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 
@@ -184,14 +203,26 @@ GetFirstBitSet(u32 Mask)
     return Result;
 }
 
-static inline u32
+internal inline usz
+RoundDownToPow2(i32 Value)
+{
+#if defined(TT_MSVC)
+    i32 TrailingZero = 64-__lzcnt(Value);
+#elif defined(TT_GCC)
+    i32 TrailingZero = 64-__builtin_clzl(Value);
+#else // Reserved for other compiler intrinsics. 
+#endif
+    return (usz)(1 << (TrailingZero-1));
+}
+
+internal inline u32
 ClearBit(u32 Value, i32 Bit)
 {
     Value &= ~(1UL << Bit);
     return Value;
 }
 
-static inline f64
+internal inline f64
 Pow(f64 Base, f64 Exponent)
 {
 #if defined(TT_NO_CMATH)
@@ -201,7 +232,7 @@ Pow(f64 Base, f64 Exponent)
 #endif
 }
 
-inline f64
+internal inline f64
 Sin(f64 Angle)
 {
 #if defined(TT_NO_CMATH)
@@ -211,7 +242,7 @@ Sin(f64 Angle)
 #endif
 }
 
-inline f64
+internal inline f64
 Cos(f64 Angle)
 {
 #if defined(TT_NO_CMATH)
@@ -221,7 +252,7 @@ Cos(f64 Angle)
 #endif
 }
 
-inline f64
+internal inline f64
 ACos(f64 Angle)
 {
 #if defined(TT_NO_CMATH)
@@ -231,7 +262,7 @@ ACos(f64 Angle)
 #endif
 }
 
-inline f64
+internal inline f64
 Sqrt(f64 Value)
 {
 #if defined(TT_NO_CMATH)
@@ -241,7 +272,7 @@ Sqrt(f64 Value)
 #endif
 }
 
-inline usz
+internal inline usz
 NumberOfDigits(isz Integer)
 {
     usz Count = 0;

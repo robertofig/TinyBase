@@ -97,35 +97,35 @@ external usz StringLen(string A, len_type LenType);
 // Interpret
 //========================================
 
-external b32 CharIsAlphanum(mb_char Char);
+external bool CharIsAlphanum(mb_char Char);
 
 /* Determines if a multibyte char is a~z, A~Z, or 0~9.
-|--- Return: 1 if char is alphanum, 0 if not. */
+|--- Return: 1 if char is alphanum, false if not. */
 
-external b32 CharIsDigit(mb_char Char);
+external bool CharIsDigit(mb_char Char);
 
 /* Determines if a multibyte char is 0~9.
-|--- Return: 1 if char is digit, 0 if not. */
+|--- Return: 1 if char is digit, false if not. */
 
-external b32 CharIsLetter(mb_char Char);
+external bool CharIsLetter(mb_char Char);
 
 /* Determines if a multibyte char is a~z or A~Z.
-|--- Return: 1 if char is letter, 0 if not. */
+|--- Return: 1 if char is letter, false if not. */
 
-external b32 StringIsAlphanum(string Src);
+external bool StringIsAlphanum(string Src);
 
 /* Determines if all chars in [Src] are a~z, A~Z, or 0~9.
-|--- Return: 1 if all chars are alphanum, 0 if not. */
+|--- Return: 1 if all chars are alphanum, false if not. */
 
-external b32 StringIsDigit(string Src);
+external bool StringIsDigit(string Src);
 
 /* Determines if all chars in [Src] are 0~9.
-|--- Return: 1 if all chars are digits, 0 if not. */
+|--- Return: 1 if all chars are digits, false if not. */
 
-external b32 StringIsLetter(string Src);
+external bool StringIsLetter(string Src);
 
 /* Determines if all chars in [Src] are a~z or A~Z.
-|--- Return: 1 if all chars are letters, 0 if not. */
+|--- Return: 1 if all chars are letters, false if not. */
 
 external isz StringToInt(string Src);
 
@@ -154,7 +154,7 @@ external f64 StringToFloat(string Src);
 
 /* Flags for CharInString() and StringInString() are the same as defined in "memory.h".
  |
-| RETURN_BOOL        Returns 1 if query was successful, 0 if not.
+| RETURN_BOOL        Returns 1 if query was successful, false if not.
 | RETURN_IDX_FIND    Returns offset into first byte of instance found, or INVALID_IDX if none.
  | RETURN_IDX_AFTER   Returns offset one mb_char after first instance found, or INVALID_IDX if none.
  | RETURN_IDX_DIFF    Returns offset where two buffers start to differ, or the length if they don't.
@@ -194,11 +194,11 @@ external usz CompareStrings(string A, string B, usz AmountToCompare, int Flag);
  |  returns the point where they differ, or the amount compared if not.
 |--- Return: based on return type flag. */
 
-external b32 EqualStrings(string A, string B);
+external bool EqualStrings(string A, string B);
 
 /* Compares two strings byte by byte, to see if they are identical in size and content.
 |  Both strings must be of same encoding, otherwise the function fails.
- |--- Return: 1 if successful, 0 if not. */
+ |--- Return: true if successful, false if not. */
 
 
 //========================================
@@ -215,17 +215,17 @@ external mb_char EncodeChar(uchar Char, encoding Enc);
 /* Takes one Unicode codepoint [Char] and encodes it to multibyte char of encoding [Enc].
 |--- Return: encoded char. */
 
-external b32 Transcode(string Src, string* Dst);
+external bool Transcode(string Src, string* Dst);
 
 /* Copies [Src] into [Dst], transcoding it into [Dst]'s encoding. Function fails if the
 |  transcoded [Src] does not fit entirely in [Dst].
- |--- Return: 1 if successful, 0 if not. */
+ |--- Return: true if successful, false if not. */
 
-external b32 ReplaceCharInString(mb_char Old, mb_char New, string A);
+external bool ReplaceCharInString(mb_char Old, mb_char New, string A);
 
 /* Replaces every instance of multibyte [Old] in [A] with [New]. Assumes [Old] and [New]
  |  are in the same encoding as [A], and same number of bytes (function fails otherwise).
-|--- Return: 1 if successful, 0 if not. */
+|--- Return: true if successful, false if not. */
 
 
 //========================================
@@ -234,64 +234,64 @@ external b32 ReplaceCharInString(mb_char Old, mb_char New, string A);
 
 external void AdvanceString(string* Dst, usz NumChars);
 
-/* Modifies [Dst] to advance its [.Base] by [NumChars], and shrink [.WriteCur]
-   |  and [.Size] by the same amount.
+/* Modifies [Dst] to advance its [.Base] by [NumChars], and shrink [.WriteCur] and [.Size] by
+ |  the same amount.
  |--- Return: nothing. */
 
-external b32 AppendArrayToString(void* Src, string* Dst);
+external bool AppendArrayToString(void* Src, string* Dst);
 
-/* Appends content of [Src] into [Dst]. [Src] must be zero-terminated, and its content
- |  must fit entirely in [Dst]. Assumes both are in same encoding.
- |--- Return: 1 if successful, 0 if not. */
+/* Appends content of [Src] into [Dst]. [Src] must be zero-terminated, and its content must
+ |  fit entirely in [Dst]. Assumes both are in same encoding.
+ |--- Return: true if successful, false if not. */
 
-external b32 AppendCharToString(mb_char Src, string* Dst);
+external bool AppendCharToString(mb_char Src, string* Dst);
 
-/* Appends multibyte char [Src] into [Dst]. Multibyte must fit entirely in [Dst].
- |  Assumes both are in same encoding.
-|--- Return: 1 if successful, 0 if not. */
+/* Appends multibyte char [Src] into [Dst]. Multibyte must fit entirely in [Dst]. Assumes both
+ |  are in same encoding.
+|--- Return: true if successful, false if not. */
 
-external b32 AppendCharToStringNTimes(mb_char Src, usz Count, string* Dst);
+external bool AppendCharToStringNTimes(mb_char Src, usz Count, string* Dst);
 
 /* Appends the multibyte char [Src] into [Dst], [Count] number of times. All multibyte chars
 |  must fit in [Dst]. Assumes both are in same encoding.
- |--- Return: 1 if successful, 0 if not. */
+ |--- Return: true if successful, false if not. */
 
-external b32 AppendDataToString(void* Src, usz SrcSize, string* Dst);
+external bool AppendDataToString(void* Src, usz SrcSize, string* Dst);
 
 /* Appends [SrcSize] bytes of [Src] into [Dst]. [Src] content myst fit entirely in [Dst].
 |  Assumes both at in same encoding.
- |--- Return: 1 if successful, 0 if not. */
+ |--- Return: true if successful, false if not. */
 
-external b32 AppendStringToString(string Src, string* Dst);
+external bool AppendStringToString(string Src, string* Dst);
 
-/* Appends [Src] into [Dst]. Both need to be in same encoding. [Src] content must fit
+/* Appends [Src] into [Dst]. Both need to be in same encoding. [Src] content must fit 
 |  entirely in [Dst].
- |--- Return: 1 if successful, 0 if not. */
+ |--- Return: true if successful, false if not. */
 
-external b32 AppendStringToStringNTimes(string Src, usz Count, string* Dst);
+external bool AppendStringToStringNTimes(string Src, usz Count, string* Dst);
 
 /* Appends  [Src] into [Dst], [Count] number of times. Both need to be in same encoding.
 |  [Src] content must fit entirely in [Dst].
- |--- Return: 1 if successful, 0 if not. */
+ |--- Return: true if successful, false if not. */
 
-external b32 AppendIntToString(isz Integer, string* Dst);
+external bool AppendIntToString(isz Integer, string* Dst);
 
-/* Appends signed integer into [Dst], in the encode specified by [Dst]. String
- |  representation of [Integer] must fit entirely in [Dst].
-|--- Return: 1 if successful, 0 if not. */
+/* Appends signed integer into [Dst], in the encode specified by [Dst]. String representation
+ |  of [Integer] must fit entirely in [Dst].
+|--- Return: true if successful, false if not. */
 
-external b32 AppendUIntToString(usz Integer, string* Dst);
+external bool AppendUIntToString(usz Integer, string* Dst);
 
-/* Appends unsigned integer into [Dst], in the encode specified by [Dst]. String
- |  representation of [Integer] must fit entirely in [Dst].
-|--- Return: 1 if successful, 0 if not. */
+/* Appends unsigned integer into [Dst], in the encode specified by [Dst]. String representation
+ |  of [Integer] must fit entirely in [Dst].
+|--- Return: true if successful, false if not. */
 
-external b32 AppendFloatToString(f64 Float, usz DecimalPlaces, b32 InScientificNotation, string* Dst);
+external bool AppendFloatToString(f64 Float, usz DecimalPlaces, bool InScientificNotation, string* Dst);
 
 /* Appends float into [Dst], to [DecimalPlaces] precision, in the encode specified by [Dst].
- |  [InScientificNotation] controls the format (e.g. 0.0045 without, or 4.5e-002 with).
-|  String representation of [Float] must fit entirely in [Dst].
-|--- Return: 1 if successful, 0 if not. */
+ |  [InScientificNotation] controls the format (e.g. 0.0045 without, or 4.5e-002 with). String
+ |  representation of [Float] must fit entirely in [Dst].
+|--- Return: true if successful, false if not. */
 
 
 //========================================
@@ -307,7 +307,7 @@ inline string operator+(string A, string Src) { AppendStringToString(Src, &A); r
 inline string& operator+=(string& A, string Src) { A = A + Src; return A; }
 inline string operator+(string A, isz Integer) { AppendIntToString(Integer, &A); return A; }
 inline string& operator+=(string& A, isz Integer) { A = A + Integer; return A; }
-inline b32 operator==(string A, string B) { return EqualBuffers(A.Buffer, B.Buffer); }
+inline bool operator==(string A, string B) { return EqualBuffers(A.Buffer, B.Buffer); }
 
 #endif //__cplusplus
 

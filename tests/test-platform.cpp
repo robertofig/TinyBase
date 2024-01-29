@@ -128,9 +128,9 @@ bool TestReadFromFile(file FileHandle, usz StartPos, usz AmountToRead, buffer Ex
         && EqualBuffers(Mem, Expected1)
         && (Mem.Base[Mem.WriteCur-1] != 0))
     {
-        return true == Expected2;
+        return (true == Expected2);
     }
-    return false == Expected2;
+    return (false == Expected2);
 }
 
 bool TestReadEntireFile(file FileHandle, buffer Expected1, bool Expected2)
@@ -140,9 +140,9 @@ bool TestReadEntireFile(file FileHandle, buffer Expected1, bool Expected2)
         && EqualBuffers(File, Expected1)
         && (File.Base[File.WriteCur-1] != 0))
     {
-        return true == Expected2;
+        return (true == Expected2);
     }
-    return false == Expected2;
+    return (false == Expected2);
 }
 
 bool TestWriteEntireFile(file FileHandle, buffer Content)
@@ -169,20 +169,20 @@ bool TestWriteToFile(file FileHandle, buffer Content, usz StartPos)
     return Result;
 }
 
-bool TestFilesAreEqual(void* APath, void* BPath, b32 Expected)
+bool TestFilesAreEqual(void* APath, void* BPath, bool Expected)
 {
     file A = OpenFileHandle(APath, READ_SHARE);
     file B = OpenFileHandle(BPath, READ_SHARE);
-    b32 Result = FilesAreEqual(A, B);
+    bool Result = FilesAreEqual(A, B);
     
     CloseFileHandle(A);
     CloseFileHandle(B);
-    return Result == Expected;
+    return (Result == Expected);
 }
 
-bool TestDuplicateFile(void* SrcPath, void* DstPath, bool OverwriteIfExists, b32 Expected)
+bool TestDuplicateFile(void* SrcPath, void* DstPath, bool OverwriteIfExists, bool Expected)
 {
-    b32 Result = DuplicateFile(SrcPath, DstPath, OverwriteIfExists);
+    bool Result = DuplicateFile(SrcPath, DstPath, OverwriteIfExists);
     if (Result == 1)
     {
         file A = OpenFileHandle(SrcPath, READ_SHARE);
@@ -195,7 +195,7 @@ bool TestDuplicateFile(void* SrcPath, void* DstPath, bool OverwriteIfExists, b32
     return Result == Expected;
 }
 
-bool TestRemoveFile(void* Filename, b32 Expected)
+bool TestRemoveFile(void* Filename, bool Expected)
 {
     return RemoveFile(Filename) == Expected;
 }
@@ -212,12 +212,12 @@ bool TestMakeDir(void* Path)
     return MakeDir(Path);
 }
 
-bool TestIsExistingPath(void* Path, b32 Expected)
+bool TestIsExistingPath(void* Path, bool Expected)
 {
     return IsExistingPath(Path) == Expected;
 }
 
-bool TestIsExistingDir(void* Path, b32 Expected)
+bool TestIsExistingDir(void* Path, bool Expected)
 {
     return IsExistingDir(Path) == Expected;
 }
@@ -277,7 +277,7 @@ bool TestListFiles(path DirPath, path Expected)
     return (FileCount == ExpCount && FileCount == FileEqual);
 }
 
-bool TestRemoveDir(void* Path, bool RemoveAllFiles, b32 Expected)
+bool TestRemoveDir(void* Path, bool RemoveAllFiles, bool Expected)
 {
     return RemoveDir(Path, RemoveAllFiles) == Expected;
 }
@@ -403,11 +403,11 @@ int main()
     Test(ReadFromFile, File, 21, 11, FileNewText, false);
     Test(FilesAreEqual, __VFILE__, __VFILE__, true);
     Test(FilesAreEqual, __VFILE__, _TempA, false);
-    Test(DuplicateFile, __VFILE__, _TempC, false, 1);
-    Test(DuplicateFile, __VFILE__, _TempC, true, 1);
-    Test(DuplicateFile, __VFILE__, _TempC, false, 4);
-    Test(RemoveFile, _TempA, 1);
-    Test(RemoveFile, _TempD, 2);
+    Test(DuplicateFile, __VFILE__, _TempC, false, true);
+    Test(DuplicateFile, __VFILE__, _TempC, true, true);
+    Test(DuplicateFile, __VFILE__, _TempC, false, false);
+    Test(RemoveFile, _TempA, true);
+    Test(RemoveFile, _TempD, false);
     
     // Filesystem
     char DirPathBuf[MAX_PATH_SIZE] = {0};

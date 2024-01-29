@@ -116,45 +116,35 @@ StringLen(string A, len_type LenType)
     }
 }
 
-#if 0
-external b32
-CharsAreEqual(void* A, void* B, encoding Enc)
-{
-    mb_char CharA = GetMultibyteChar(A, Enc);
-    mb_char CharB = GetMultibyteChar(B, Enc);
-    return CharA.Bytes == CharB.Bytes;
-}
-#endif
-
 //========================================
 // Interpret
 //========================================
 
-external b32
+external bool
 CharIsDigit(mb_char Char)
 {
     return (Char >= '0' && Char <= '9');
 }
 
-external b32
+external bool
 CharIsHexDigit(mb_char Char)
 {
     return ((Char >= '0' && Char <= '9') || (Char >= 'A' && Char <= 'F') || (Char >= 'a' && Char <= 'f'));
 }
 
-external b32
+external bool
 CharIsLetter(mb_char Char)
 {
     return ((Char >= 'a' && Char <= 'z') || (Char >= 'A' && Char <= 'Z'));
 }
 
-external b32
+external bool
 CharIsAlphanum(mb_char Char)
 {
     return ((Char >= 'a' && Char <= 'z') || (Char >= 'A' && Char <= 'Z') || (Char >= '0' && Char <= '9'));
 }
 
-external b32
+external bool
 StringIsDigit(string Src)
 {
     encoding EC = (Src.Enc == EC_UTF8) ? EC_ASCII : Src.Enc;
@@ -170,7 +160,7 @@ StringIsDigit(string Src)
     return true;
 }
 
-external b32
+external bool
 StringIsLetter(string Src)
 {
     encoding EC = (Src.Enc == EC_UTF8) ? EC_ASCII : Src.Enc;
@@ -186,7 +176,7 @@ StringIsLetter(string Src)
     return true;
 }
 
-external b32
+external bool
 StringIsAlphanum(string Src)
 {
     encoding EC = (Src.Enc == EC_UTF8) ? EC_ASCII : Src.Enc;
@@ -398,10 +388,10 @@ CompareStrings(string A, string B, usz AmountToCompare, int Flag)
     return Result;
 }
 
-external b32
+external bool
 EqualStrings(string A, string B)
 {
-    b32 Result = (A.Enc == B.Enc) && (EqualBuffers(A.Buffer, B.Buffer));
+    bool Result = (A.Enc == B.Enc) && (EqualBuffers(A.Buffer, B.Buffer));
     return Result;
 }
 
@@ -433,7 +423,7 @@ EncodeChar(uchar Char, encoding EC)
     }
 }
 
-internal b32
+internal bool
 _Transcode(string Src, string* Dst)
 {
     usz StartWriteCur = Dst->WriteCur;
@@ -470,7 +460,7 @@ _Transcode(string Src, string* Dst)
     return true;
 }
 
-external b32
+external bool
 Transcode(string Src, string* Dst)
 {
     switch (Dst->Enc)
@@ -481,7 +471,7 @@ Transcode(string Src, string* Dst)
     }
 }
 
-external b32
+external bool
 ReplaceCharInString(mb_char Old, mb_char New, string A)
 {
     // Assumes [Old], [New] and [A] are same EC.
@@ -528,7 +518,7 @@ AdvanceString(string* Dst, usz NumChars)
     }
 }
 
-external b32
+external bool
 AppendCharToString(mb_char Src, string* Dst)
 {
     // Assumes [Src] is same EC as [Dst].
@@ -538,7 +528,7 @@ AppendCharToString(mb_char Src, string* Dst)
     return AppendBufferToBuffer(SrcBuffer, &Dst->Buffer);
 }
 
-external b32
+external bool
 AppendCharToStringNTimes(mb_char Src, usz Count, string* Dst)
 {
     // Assumes [Src] is same EC as [Dst].
@@ -548,7 +538,7 @@ AppendCharToStringNTimes(mb_char Src, usz Count, string* Dst)
     return AppendBufferToBufferNTimes(SrcBuffer, Count, &Dst->Buffer);
 }
 
-external b32
+external bool
 AppendArrayToString(void* Src, string* Dst)
 {
     // Assumes [Src] is same EC as [Dst], and zero-terminated.
@@ -556,14 +546,14 @@ AppendArrayToString(void* Src, string* Dst)
     return AppendDataToBuffer(Src, NULIdx, &Dst->Buffer);
 }
 
-external b32
+external bool
 AppendDataToString(void* Src, usz SrcSize, string* Dst)
 {
     // Assumes [Src] is same EC as [Dst].
     return AppendDataToBuffer(Src, SrcSize, &Dst->Buffer);
 }
 
-external b32
+external bool
 AppendStringToString(string Src, string* Dst)
 {
     if (Src.Enc == Dst->Enc)
@@ -576,7 +566,7 @@ AppendStringToString(string Src, string* Dst)
     }
 }
 
-external b32
+external bool
 AppendStringToStringNTimes(string Src, usz Count, string* Dst)
 {
     if (Src.Enc == Dst->Enc)
@@ -593,7 +583,7 @@ AppendStringToStringNTimes(string Src, usz Count, string* Dst)
     }
 }
 
-external b32
+external bool
 AppendUIntToString(usz Integer, string* Dst)
 {
     usz NumDigits = NumberOfDigits(Integer);
@@ -615,7 +605,7 @@ AppendUIntToString(usz Integer, string* Dst)
     return false;
 }
 
-external b32
+external bool
 AppendIntToString(isz Integer, string* Dst)
 {
     usz NumDigits = NumberOfDigits(Integer);
@@ -646,7 +636,7 @@ AppendIntToString(isz Integer, string* Dst)
     return false;
 }
 
-internal b32
+internal bool
 _AppendFloatToStringRegular(f64 Float, usz DecimalPlaces, string* Dst)
 {
     isz Hi = Abs((isz)Float);
@@ -701,7 +691,7 @@ _AppendFloatToStringRegular(f64 Float, usz DecimalPlaces, string* Dst)
     return false;
 }
 
-internal b32
+internal bool
 _AppendFloatToStringInSN(f64 Float, usz DecimalPlaces, string* Dst)
 {
     // OBS: Format is (-)I.(D * DecimalPlaces)e(+/-)XXX.
@@ -775,8 +765,8 @@ _AppendFloatToStringInSN(f64 Float, usz DecimalPlaces, string* Dst)
     return false;
 }
 
-external b32
-AppendFloatToString(f64 Float, usz DecimalPlaces, b32 InScientificNotation, string* Dst)
+external bool
+AppendFloatToString(f64 Float, usz DecimalPlaces, bool InScientificNotation, string* Dst)
 {
     if (InScientificNotation) return _AppendFloatToStringInSN(Float, DecimalPlaces, Dst);
     else return _AppendFloatToStringRegular(Float, DecimalPlaces, Dst);
