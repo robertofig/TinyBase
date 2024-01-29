@@ -12,7 +12,7 @@
 #include <float.h>
 
 //==================================
-// Platform and compiler defines
+// Platform defines
 //==================================
 
 #if defined(_WIN32)
@@ -29,6 +29,10 @@
 # define DYNAMIC_LIB_EXT ".so"
 #else // Reserved for other platforms.
 #endif //_WIN32
+
+//==================================
+// Compiler defines
+//==================================
 
 #if defined(__clang__)
 # define TT_CLANG
@@ -56,8 +60,7 @@
 # define XMM256_LAST_IDX 0x1F
 static int CPUIDLeaf1[4] = {0};
 static int CPUIDLeaf7a[4] = {0};
-#else
-// Reserved for other architectures.
+#else // Reserved for other architectures.
 #endif //_M_AMD64 || __X86_64__
 
 //==================================
@@ -95,6 +98,17 @@ typedef intptr_t isz;
 #define internal static
 #define global static
 #define local static
+
+#if defined(__cplusplus) && (__cplusplus >= 201103)
+// Type already defined.
+#else
+# if defined(TT_GCC) || defined(TT_CLANG)
+#  define thread_local __thread
+# elif defined(TT_MSVC)
+#  define thread_local __declspec( thread )
+# else // Reserved for other compilers.
+# endif
+#endif
 
 #define Kilobyte(Number) Number * 1024ULL
 #define Megabyte(Number) Number * 1024ULL * 1024ULL
