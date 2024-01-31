@@ -222,21 +222,21 @@ external bool SeekFile(file File, usz Pos);
 
 typedef string path;
 
-/* Type [path] is a string with MAX_PATH_SIZE [.Size] and in the system native
-|  unicode encoding (e.g. UTF-16 on Windows, UTF-8 on Linux). */
+// Type [path] is a string with MAX_PATH_SIZE [.Size] and in the system native
+// unicode encoding (e.g. UTF-16 on Windows, UTF-8 on Linux).
 
-external path Path(void* Mem);
+external path Path(buffer Mem);
 
-/* Creates a path from [Mem] memory region, and sets [.WriteCur] to zero. [Mem] must be at
- |  least MAX_PATH_SIZE long.
+/* Creates a path from [Mem] buffer, and sets [.WriteCur] to zero. The resulting
+|  path object will have a [.Size] of at most MAX_PATH_SIZE.
 |--- Return: new path object.*/
 
 external path PathLit(void* CString);
 
-/* Creates a path form [CString] memory region, and sets [.WriteCur] to its length. This
- |  length is the number of bytes until the zero-termination. If [CString] is not
-|  zero-terminated, a buffer overflow may occur.
- |--- Return: new path object, or empty path if length cannot be determined. */
+/* Creates a path from [CString] memory region, and sets [.WriteCur] to its length
+ |  or MAX_PATH_SIZE, whichever is smaller. This length is the number of bytes until
+ |  the zero-termination. If [CString] is not zero-terminated, an overflow may occur.
+ |--- Return: new path object. */
 
 external bool AppendArrayToPath(void* NewPart, path* Dst);
 

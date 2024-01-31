@@ -437,24 +437,23 @@ IsExistingDir(void* Filepath)
 }
 
 external path
-Path(void* Mem)
+Path(buffer Mem)
 {
-    // Path [.Size] is set to 1 byte less than MAX_PATH_SIZE, so there's always room for \0.
-    path Result = String((u8*)Mem, 0, MAX_PATH_SIZE-1, EC_UTF8);
+    // Path [.Size] is set to either MAX_PATH_SIZE or Mem [.Size], whichever is
+    // smaller. The size is set to 1 byte less, so there's always room for \0.
+    
+    usz PathSize = Min(Mem.Size, MAX_PATH_SIZE);
+    path Result = String(Mem.Base, 0, PathSize - sizeof(char), EC_UTF16LE);
     return Result;
 }
 
 external path
 PathLit(void* CString)
 {
-    // Assumes [CString] is in UTF-16LE.
-    path Result = { 0, 0, 0, EC_UTF8 };
+    // Assumes [CString] is in UTF-8.
+    path Result = { CString, 0, 0, EC_UTF8 };
     usz CStringSize = strlen((char*)CString);
-    if (CStringSize <= MAX_PATH_SIZE)
-    {
-        Result.Base = (char*)CString;
-        Result.WriteCur = CStringSize;
-    }
+    Result.WriteCur = Min(CStringSize, MAX_PATH_SIZE);
     return Result;
 }
 

@@ -419,10 +419,13 @@ IsExistingDir(void* Path)
 }
 
 external path
-Path(void* Mem)
+Path(buffer Mem)
 {
-    // Path [.Size] is set to 2 byte less than MAX_PATH_SIZE, so there's always room for \0.
-    path Result = String((u8*)Mem, 0, MAX_PATH_SIZE - sizeof(wchar_t), EC_UTF16LE);
+    // Path [.Size] is set to either MAX_PATH_SIZE or Mem [.Size], whichever is
+    // smaller. The size is set to 2 byte less, so there's always room for \0.
+    
+    usz PathSize = Min(Mem.Size, MAX_PATH_SIZE);
+    path Result = String(Mem.Base, 0, PathSize - sizeof(wchar_t), EC_UTF16LE);
     return Result;
 }
 
@@ -430,13 +433,9 @@ external path
 PathLit(void* CString)
 {
     // Assumes [CString] is in UTF-16LE.
-    path Result = { 0, 0, 0, EC_UTF16LE };
+    path Result = { CString, 0, 0, EC_UTF16LE };
     usz CStringSize = 2 * wcslen((wchar_t*)CString);
-    if (CStringSize <= MAX_PATH_SIZE)
-    {
-        Result.Base = (char*)CString;
-        Result.WriteCur = CStringSize;
-    }
+    Result.WriteCur = Min(CStringSize, MAX_PATH_SIZE);
     return Result;
 }
 
@@ -577,15 +576,18 @@ AppendArrayToPath(void* NewPart, path* Dst)
 external bool
 AppendCWDToPath(path* Dst)
 {
+    bool Result = false;
+    
     char CWD[MAX_PATH_SIZE] = {0};
     path CWDPath = Path(CWD);
-    DWORD Result = 2 * GetCurrentDirectoryW(sizeof(CWD) / 2, (wchar_t*)CWD);
+    DWORD Length = 2 * GetCurrentDirectoryW(sizeof(CWD) / 2, (wchar_t*)CWD);
+    if (Length > 0 && Length < MAX_PATH_SIZE)
+    {
+        CWDPath.WriteCur = Length;
+        Result = _AppendPathToPath(CWDPath, Dst);
+    }
     
-    if (Result == 0) return 2;
-    else if (Result > MAX_PATH_SIZE) return 0;
-    else CWDPath.WriteCur = Result;
-    
-    return _AppendPathToPath(CWDPath, Dst);
+    return Result;
 }
 
 external bool
