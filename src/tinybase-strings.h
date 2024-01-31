@@ -56,7 +56,9 @@ external string String(void* Base, usz WriteCur, usz Size, encoding Enc);
 /* Creates a new string struct.
  |--- Return: string. */
 
-#define StrLit(S) String((S), sizeof(S)-1, 0, EC_ASCII)
+external string StringC(void* Base, encoding Enc);
+
+#define StringLit(S) String((S), sizeof(S)-1, 0, EC_ASCII)
 
 /* Creates a new string struct from a C string literal.
  |--- Return: string. */
@@ -68,13 +70,19 @@ external string String(void* Base, usz WriteCur, usz Size, encoding Enc);
 typedef enum len_type
 {
     LEN_CSTRING,   // Same as using strlen() or wcslen() from the C standard lib.
-    LEN_CODEPOINT, // Returns the number of codepoints in a string (multibyte char is counted as 1).
+    LEN_CODEPOINT, // Returns the number of codepoints in a string.
     LEN_PRINTCHAR  // Returns the number of printable characters in a string.
 } len_type;
 
 external mb_char GetNextChar(void* Src, encoding Enc);
 
 /* Get the next multibyte character in [Src], given [Enc] encoding.
+ |--- Return: multibyte char at address [Src]. */
+
+external mb_char EatNextChar(void** Src, encoding Enc);
+
+/* Get the next multibyte character in [Src], given [Enc] encoding, and advances
+|  [Src] by the number of bytes of that character.
  |--- Return: multibyte char at address [Src]. */
 
 external u32 GetNextCharSize(void* Src, encoding Enc);

@@ -9,6 +9,14 @@ String(void* Base, usz WriteCur, usz Size, encoding EC)
     return Result;
 }
 
+external string
+StringC(void* Base, encoding Enc)
+{
+    string Result = String(Base, 0, 0, Enc);
+    Result.WriteCur = StringLen(Result, LEN_CSTRING);
+    return Result;
+}
+
 //========================================
 // Read
 //========================================
@@ -68,7 +76,24 @@ GetNextChar(void* Src, encoding Enc)
         case 4: Bytes = Ptr[3] << 24 | Ptr[2] << 16 | Ptr[1] << 8 | Ptr[0]; break;
     }
     Bytes = _AdjustEndianness(Bytes, Enc);
-    
+    return Bytes;
+}
+
+external mb_char
+EatNextChar(void** Src, encoding Enc)
+{
+    u8* Ptr = *(u8**)Src;
+    u32 Size = GetNextCharSize(Src, Enc);
+    mb_char Bytes = 0;
+    switch (Size)
+    {
+        case 1: Bytes = Ptr[0]; break;
+        case 2: Bytes = Ptr[1] << 8  | Ptr[0]; break;
+        case 3: Bytes = Ptr[2] << 16 | Ptr[1] << 8  | Ptr[0]; break;
+        case 4: Bytes = Ptr[3] << 24 | Ptr[2] << 16 | Ptr[1] << 8 | Ptr[0]; break;
+    }
+    Bytes = _AdjustEndianness(Bytes, Enc);
+    *Src = Ptr;
     return Bytes;
 }
 
