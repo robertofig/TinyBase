@@ -1,4 +1,5 @@
-#define _WINSOCKAPI_ // OBS: Prevents windows.h from including winsock.h, so winsock2.h can be used instead.
+#define _WINSOCKAPI_ // Prevents windows.h from including winsock.h, so windock2.h
+//                      can be used instead.
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <versionhelpers.h>
@@ -31,10 +32,12 @@ LoadSystemInfo(void)
     if (IsWindowsServer())
     {
         if (IsWindows10OrGreater()) CopyData(gSysInfo.OSVersion, VerSize, "S16R1", 5);
-        else if (IsWindows8Point1OrGreater()) CopyData(gSysInfo.OSVersion, VerSize, "S12R2", 5);
+        else if (IsWindows8Point1OrGreater()) CopyData(gSysInfo.OSVersion, VerSize,
+                                                       "S12R2", 5);
         else if (IsWindows8OrGreater()) CopyData(gSysInfo.OSVersion, VerSize, "S12R1", 5);
         else if (IsWindows7OrGreater()) CopyData(gSysInfo.OSVersion, VerSize, "S08R2", 5);
-        else if (IsWindowsVistaOrGreater()) CopyData(gSysInfo.OSVersion, VerSize, "S08R1", 5);
+        else if (IsWindowsVistaOrGreater()) CopyData(gSysInfo.OSVersion, VerSize,
+                                                     "S08R1", 5);
         else CopyData(gSysInfo.OSVersion, VerSize, "S...", 4);
     }
     else
@@ -65,16 +68,27 @@ GetMemory(usz Size, void* Address, int Flags)
     buffer Result = {0};
     
     DWORD Access = 0;
-    if (Flags & MEM_GUARD) Access = PAGE_NOACCESS;
+    if (Flags & MEM_GUARD)
+    {
+        Access = PAGE_NOACCESS;
+    }
     else if (Flags & MEM_EXEC)
     {
         if (Flags & MEM_WRITE) Access = PAGE_EXECUTE_READWRITE;
         else if (Flags & MEM_READ) Access = PAGE_EXECUTE_READ;
         else Access = PAGE_EXECUTE;
     }
-    else if (Flags & MEM_WRITE) Access = PAGE_READWRITE;
-    else Access = PAGE_READONLY;
-    DWORD AllocType = MEM_RESERVE | MEM_COMMIT | ((Flags & MEM_HUGEPAGE) ? MEM_LARGE_PAGES : 0);
+    else if
+    {
+        (Flags & MEM_WRITE) Access = PAGE_READWRITE;
+    }
+    else
+    {
+        Access = PAGE_READONLY;
+    }
+    
+    DWORD HugePages = ((Flags & MEM_HUGEPAGE) > 0) ? MEM_LARGE_PAGES : 0;
+    DWORD AllocType = MEM_RESERVE | MEM_COMMIT | HugePages;
     
     void* Ptr = VirtualAlloc(Address, Size, AllocType, Access);
     if (Ptr)
@@ -119,23 +133,22 @@ FreeMemoryFromHeap(buffer* Mem)
 internal file
 _NewFile(void* Filename, DWORD CreationMode, i32 Flags)
 {
-    bool Read = (Flags & (READ_SOLO|READ_SHARE)) > 0;
-    bool Write = (Flags & (WRITE_SOLO|WRITE_SHARE)) > 0;
-    bool Append = (Flags & APPEND_FILE) > 0;
-    DWORD AccessRights = ((GENERIC_READ) * Read) | ((GENERIC_WRITE) * Write) | ((FILE_APPEND_DATA) * Append);
+    DWORD Read = ((Flags & (READ_SOLO|READ_SHARE)) > 0) ? GENERIC_READ : 0;
+    DWORD Write = ((Flags & (WRITE_SOLO|WRITE_SHARE)) > 0) ? GENERIC_WRITE : 0;
+    DWORD Append = ((Flags & APPEND_FILE) > 0) ? FILE_APPEND_DATA : 0;
+    DWORD AccessRights = Read | Write | Append;
     
-    bool ReadShare = (Flags & READ_SHARE) > 0;
-    bool WriteShare = (Flags & WRITE_SHARE) > 0;
-    bool DeleteShare = (Flags & DELETE_SHARE) > 0;
-    DWORD ShareMode = (FILE_SHARE_READ * ReadShare) | (FILE_SHARE_WRITE * WriteShare)
-        | (FILE_SHARE_DELETE * DeleteShare);
+    DWORD ReadShare = ((Flags & READ_SHARE) > 0) ? FILE_SHARE_READ : 0;
+    DWORD WriteShare = ((Flags & WRITE_SHARE) > 0) ? FILE_SHARE_WRITE : 0;
+    DWORD DeleteShare = ((Flags & DELETE_SHARE) > 0) ? FILE_SHARE_DELETE : 0;
+    DWORD ShareMode = ReadShare | WriteShare | DeleteShare;
     
-    bool Async = (Flags & ASYNC_FILE) > 0;
-    bool Hidden = (Flags & HIDDEN_FILE) > 0;
-    DWORD Attributes = (FILE_FLAG_OVERLAPPED * Async) | (FILE_ATTRIBUTE_HIDDEN * Hidden);
+    DWORD Async = ((Flags & ASYNC_FILE) > 0) ? FILE_FLAG_OVERLAPPED : 0;
+    DWORD Hidden = ((Flags & HIDDEN_FILE) > 0) ? FILE_ATTRIBUTE_HIDDEN : 0;
+    DWORD Attributes = Async) | Hidden;
     
-    file File = (file)CreateFileW((wchar_t*)Filename, AccessRights, ShareMode, NULL, CreationMode,
-                                  Attributes, NULL);
+    file File = (file)CreateFileW((wchar_t*)Filename, AccessRights, ShareMode, NULL,
+                                  CreationMode, Attributes, NULL);
     return File;
 }
 
@@ -725,7 +738,8 @@ CurrentSystemTime(void)
     GetSystemTime(&SystemTime);
     
     datetime TimeFormat = { SystemTime.wYear, SystemTime.wMonth, SystemTime.wDay,
-        SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond, (weekday)SystemTime.wDayOfWeek };
+        SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond,
+        (weekday)SystemTime.wDayOfWeek };
     
     return TimeFormat;
 }
@@ -737,7 +751,8 @@ CurrentLocalTime(void)
     GetLocalTime(&SystemTime);
     
     datetime TimeFormat = { SystemTime.wYear, SystemTime.wMonth, SystemTime.wDay,
-        SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond, (weekday)SystemTime.wDayOfWeek };
+        SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond,
+        (weekday)SystemTime.wDayOfWeek };
     
     return TimeFormat;
 }
@@ -775,7 +790,8 @@ ThreadCreate(thread_proc ThreadProc, void* ThreadArg, bool Waitable)
 {
     // [Waitable] does nothing on Windows.
     thread Result = {0};
-    Result.Handle = (file)CreateThread(NULL, Megabyte(2), (LPTHREAD_START_ROUTINE)ThreadProc,
+    Result.Handle = (file)CreateThread(NULL, Megabyte(2),
+                                       (LPTHREAD_START_ROUTINE)ThreadProc,
                                        ThreadArg, 0, 0);
     return Result;
 }
@@ -817,8 +833,7 @@ ThreadWait(thread* Thread)
 {
     if (WaitForSingleObject((HANDLE)Thread->Handle, INFINITE) != WAIT_FAILED)
     {
-        ThreadClose(Thread);
-        return true;
+        return ThreadClose(Thread);
     }
     return false;
 }
@@ -828,9 +843,40 @@ ThreadKill(thread* Thread)
 {
     if (TerminateThread((HANDLE)Thread->Handle, 0))
     {
-        ThreadClose(Thread);
+        return ThreadClose(Thread);
+    }
+    return false;
+}
+
+external bool
+InitSemaphore(semaphore* Semaphore, i32 InitCount)
+{
+    HANDLE Result = CreateSemaphoreA(0, InitCount, I32_MAX, NULL);
+    if (Result != INVALID_HANDLE_VALUE)
+    {
+        *(HANDLE*)Semaphore->Handle = Result;
         return true;
     }
     return false;
 }
 
+external bool
+CloseSemaphore(semaphore* Semaphore)
+{
+    BOOL Result = CloseHandle(*(HANDLE*)Semaphore->Handle);
+    return Result;
+}
+
+external bool
+IncreaseSemaphore(semaphore* Semaphore)
+{
+    BOOL Result = ReleaseSemaphore(*(HANDLE*)Semaphore->Handle, 1, NULL);
+    return Result;
+}
+
+external bool
+WaitOnSemaphore(semaphore* Semaphore)
+{
+    DWORD Result = WaitForSingleObject(*(HANDLE*)Semaphore->Handle, INFINITE);
+    return (Result != WAIT_FAILED);
+}

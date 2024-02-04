@@ -53,10 +53,14 @@ typedef struct string
 
 external string String(void* Base, usz WriteCur, usz Size, encoding Enc);
 
-/* Creates a new string struct.
+/* Creates a new string object.
  |--- Return: string. */
 
 external string StringC(void* Base, encoding Enc);
+
+/* Creates a new string object from a null-terminated CString, and calculates
+|  its size.
+|--- Return: string. */
 
 #define StringLit(S) String((S), sizeof(S)-1, 0, EC_ASCII)
 

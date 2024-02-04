@@ -861,7 +861,7 @@ ThreadClose(thread* Thread)
 {
     // Function currently is a stub, to be expanded in the future.
     Thread->Handle = 0;
-    return false;
+    return true;
 }
 
 external bool
@@ -869,8 +869,7 @@ ThreadWait(thread* Thread)
 {
     if (!pthread_join((pthread_t)Thread->Handle, 0))
     {
-        ThreadClose(Thread);
-        return true;
+        return ThreadClose(Thread);
     }
     return false;
 }
@@ -880,8 +879,35 @@ ThreadKill(thread* Thread)
 {
     if (!pthread_kill((pthread_t)Thread->Handle, SIGKILL))
     {
-        ThreadClose(Thread);
-        return true;
+        return ThreadClose(Thread);
     }
     return false;
+}
+
+external bool
+InitSemaphore(semaphore* Semaphore, i32 InitCount)
+{
+    int Result = sem_init((sem_t*)Semaphore->Handle, 0, InitCount);
+    return (Result == 0);
+}
+
+external bool
+CloseSemaphore(semaphore* Semaphore)
+{
+    int Result = sem_destroy((sem_t*)Semaphore->Handle);
+    return (Result == 0);
+}
+
+external bool
+IncreaseSemaphore(semaphore* Semaphore)
+{
+    int Result = sem_post((sem_t*)Semaphore->Handle);
+    return (Result == 0);
+}
+
+external bool
+WaitOnSemaphore(semaphore* Semaphore)
+{
+    int Result = sem_wait((sem_t*)Semaphore->Handle);
+    return Result;
 }
