@@ -1,15 +1,14 @@
 #ifndef TINYBASE_QUEUES_H
-#define TINYBASE_QUEUES_H
-
-#include "tinybase-types.h"
-#include "tinybase-atomic.h"
-
 //=========================================================================
 // tinybase-queues.h
 //
 // Module for working with queues in multithreaded code. The queues here
 // are all thread-safe and lock-free.
 //=========================================================================
+#define TINYBASE_QUEUES_H
+
+#include "tinybase-types.h"
+#include "tinybase-atomic.h"
 
 
 //========================================

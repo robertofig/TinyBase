@@ -228,10 +228,10 @@ typedef string path;
 // Type [path] is a string with MAX_PATH_SIZE [.Size] and in the system native
 // unicode encoding (e.g. UTF-16 on Windows, UTF-8 on Linux).
 
-external path Path(buffer Mem);
+external path Path(void* Mem);
 
-/* Creates a path from [Mem] buffer, and sets [.WriteCur] to zero. The resulting
-|  path object will have a [.Size] of at most MAX_PATH_SIZE.
+/* Creates a path from [Mem] buffer, and sets its [.Size] to MAX_PATH_SIZE, minus
+|  one char to guarantee it will always have a null-terminator.
 |--- Return: new path object.*/
 
 external path PathLit(void* CString);
@@ -436,11 +436,11 @@ external bool UnloadExternalLibrary(file Library);
 #define SCHEDULE_HIGH    4
 
 #if defined(TT_WINDOWS)
-# define SEMAPHORE_SIZE sizeof(HANDLE)
+# define SEMAPHORE_SIZE 8 // Size of HANDLE
 # define THREAD_PROC(Name) u32 Name(void* Arg)
 typedef u32 (*thread_proc)(void*);
 #elif defined(TT_LINUX)
-# define SEMAPHORE_SIZE sizeof(sem_t)
+# define SEMAPHORE_SIZE 32 // Size of sem_t
 # define THREAD_PROC(Name) void* Name(void* Arg)
 typedef void* (*thread_proc)(void*);
 #else // Reserved for other platforms;

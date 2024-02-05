@@ -6,9 +6,9 @@ external i16
 AtomicExchange16(void* volatile Dst, i16 Value)
 {
 #if defined(TT_MSVC)
-    i16 OldValue = (i16)InterlockedExchange16((SHORT*)Dst, Value);
+    i16 OldValue = (i16)InterlockedExchange16((SHORT* volatile)Dst, Value);
 #elif defined(TT_GCC)
-    i16 OldValue = __atomic_exchange_n((i16*)Dst, Value, __ATOMIC_ACQ_REL);
+    i16 OldValue = __atomic_exchange_n((i16* volatile)Dst, Value, __ATOMIC_ACQ_REL);
 #else // Reserved for other compilers.
 #endif
     return OldValue;
@@ -18,9 +18,9 @@ external i32
 AtomicExchange32(void* volatile Dst, i32 Value)
 {
 #if defined(TT_MSVC)
-    i32 OldValue = InterlockedExchange((LONG*)Dst, Value);
+    i32 OldValue = InterlockedExchange((LONG* volatile)Dst, Value);
 #elif defined(TT_GCC)
-    i32 OldValue = __atomic_exchange_n((i32*)Dst, Value, __ATOMIC_ACQ_REL);
+    i32 OldValue = __atomic_exchange_n((i32* volatile)Dst, Value, __ATOMIC_ACQ_REL);
 #else // Reserved for other compilers.
 #endif
     return OldValue;
@@ -30,9 +30,9 @@ external i64
 AtomicExchange64(void* volatile Dst, i64 Value)
 {
 #if defined(TT_MSVC)
-    i64 OldValue = InterlockedExchange64((LONG64*)Dst, Value);
+    i64 OldValue = InterlockedExchange64((LONG64* volatile)Dst, Value);
 #elif defined(TT_GCC)
-    i64 OldValue = __atomic_exchange_n((i64*)Dst, Value, __ATOMIC_ACQ_REL);
+    i64 OldValue = __atomic_exchange_n((i64* volatile)Dst, Value, __ATOMIC_ACQ_REL);
 #else // Reserved for other compilers.
 #endif
     return OldValue;
@@ -70,8 +70,10 @@ external bool
 AtomicCompareExchange16(void* volatile Dst, i16 Compare, i16 Value)
 {
 #if defined(TT_MSVC)
+    InterlockedCompareExchange16((SHORT* volatile)Dst, Value, Compare);
+    bool Result = true;
 #elif defined(TT_GCC)
-    bool Result = __atomic_compare_exchange_n((i16*)Dst, &Compare, Value, 0,
+    bool Result = __atomic_compare_exchange_n((i16*)Dst volatile, &Compare, Value, 0,
                                               __ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
 #else // Reserved for other compilers.
 #endif
@@ -82,9 +84,10 @@ external bool
 AtomicCompareExchange32(void* volatile Dst, i32 Compare, i32 Value)
 {
 #if defined(TT_MSVC)
-    i16 OldValue = InterlockedCompareExchange((SHORT*)Dst, Value, Compare);
+    InterlockedCompareExchange((LONG* volatile)Dst, Value, Compare);
+    bool Result = true;
 #elif defined(TT_GCC)
-    bool Result = __atomic_compare_exchange_n((i32*)Dst, &Compare, Value, 0,
+    bool Result = __atomic_compare_exchange_n((i32*)Dst volatile, &Compare, Value, 0,
                                               __ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
 #else // Reserved for other compilers.
 #endif
@@ -95,9 +98,10 @@ external bool
 AtomicCompareExchange64(void* volatile Dst, i64 Compare, i64 Value)
 {
 #if defined(TT_MSVC)
-    i32 OldValue = InterlockedCompareExchange((LONG*)Dst, Value, Compare);
+    InterlockedCompareExchange64((LONG64* volatile)Dst, Value, Compare);
+    bool Result = true;
 #elif defined(TT_GCC)
-    bool Result = __atomic_compare_exchange_n((i64*)Dst, &Compare, Value, 0,
+    bool Result = __atomic_compare_exchange_n((i64*)Dst volatile, &Compare, Value, 0,
                                               __ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
 #else // Reserved for other compilers.
 #endif
@@ -108,9 +112,9 @@ external bool
 AtomicCompareExchangeisz(void* volatile Dst, isz Compare, isz Value)
 {
 #if defined(TT_X64)
-    isz Result = (isz)AtomicCompareExchange64(Dst, Compare, Value);
+    bool Result = AtomicCompareExchange64(Dst, Compare, Value);
 #else
-    isz Result = (isz)AtomicCompareExchange32(Dst, Compare, Value);
+    bool Result = AtomicCompareExchange32(Dst, Compare, Value);
 #endif
     return Result;
 }
@@ -119,7 +123,8 @@ external bool
 AtomicCompareExchangePtr(void* volatile* Dst, void* Compare, void* Value)
 {
 #if defined(TT_MSVC)
-    void* OldValue = InterlockedCompareExchangePointer(Dst, Value, Compare);
+    InterlockedCompareExchangePointer(Dst, Value, Compare);
+    bool Result = true;
 #elif defined(TT_GCC)
     bool Result = __atomic_compare_exchange_n(Dst, &Compare, Value, 0,
                                               __ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
@@ -137,9 +142,9 @@ external i16
 AtomicAddFetch16(void* volatile Dst, i16 Value)
 {
 #if defined(TT_MSVC)
-    i16 Result = (i16)InterlockedAdd(Dst, Value);
+    i16 Result = (i16)InterlockedAdd((LONG* volatile)Dst, Value);
 #elif defined(TT_GCC)
-    i16 Result = __atomic_add_fetch((i16*)Dst, Value, __ATOMIC_ACQ_REL);
+    i16 Result = __atomic_add_fetch((i16* volatile)Dst, Value, __ATOMIC_ACQ_REL);
 #else // Reserved for other compilers.
 #endif
     return Result;
@@ -149,9 +154,9 @@ external i32
 AtomicAddFetch32(void* volatile Dst, i32 Value)
 {
 #if defined(TT_MSVC)
-    i32 Result = InterlockedAdd(Dst, Value);
+    i32 Result = InterlockedAdd((LONG* volatile)Dst, Value);
 #elif defined(TT_GCC)
-    i32 Result = __atomic_add_fetch((i32*)Dst, Value, __ATOMIC_ACQ_REL);
+    i32 Result = __atomic_add_fetch((i32* volatile)Dst, Value, __ATOMIC_ACQ_REL);
 #else // Reserved for other compilers.
 #endif
     return Result;
@@ -161,9 +166,9 @@ external i64
 AtomicAddFetch64(void* volatile Dst, i64 Value)
 {
 #if defined(TT_MSVC)
-    i64 Result = InterlockedAdd64(Dst, Value);
+    i64 Result = InterlockedAdd64((LONG64* volatile)Dst, Value);
 #elif defined(TT_GCC)
-    i64 Result = __atomic_add_fetch((i64*)Dst, Value, __ATOMIC_ACQ_REL);
+    i64 Result = __atomic_add_fetch((i64* volatile)Dst, Value, __ATOMIC_ACQ_REL);
 #else // Reserved for other compilers.
 #endif
     return Result;
@@ -184,9 +189,9 @@ external void*
 AtomicAddFetchPtr(void* volatile* Dst, isz Value)
 {
 #if defined(TT_MSVC)
-    void* Result = (void*)InterlockedAdd64(Dst, Value);
+    void* Result = (void*)InterlockedAdd64((LONG64* volatile)Dst, Value);
 #elif defined(TT_GCC)
-    void* Result = (void*)__atomic_add_fetch((isz*)Dst, Value, __ATOMIC_ACQ_REL);
+    void* Result = (void*)__atomic_add_fetch((isz* volatile)Dst, Value, __ATOMIC_ACQ_REL);
 #else // Reserved for other compilers.
 #endif
     return Result;

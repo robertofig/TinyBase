@@ -437,13 +437,10 @@ IsExistingDir(void* Filepath)
 }
 
 external path
-Path(buffer Mem)
+Path(void* Mem)
 {
-    // Path [.Size] is set to either MAX_PATH_SIZE or Mem [.Size], whichever is
-    // smaller. The size is set to 1 byte less, so there's always room for \0.
-    
-    usz PathSize = Min(Mem.Size, MAX_PATH_SIZE);
-    path Result = String(Mem.Base, 0, PathSize - sizeof(char), EC_UTF16LE);
+    // Expects [Mem] to have at least MAX_PATH_SIZE of size.
+    path Result = String(Mem, 0, MAX_PATH_SIZE - sizeof(char), EC_UTF8);
     return Result;
 }
 

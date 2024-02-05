@@ -78,9 +78,9 @@ GetMemory(usz Size, void* Address, int Flags)
         else if (Flags & MEM_READ) Access = PAGE_EXECUTE_READ;
         else Access = PAGE_EXECUTE;
     }
-    else if
+    else if (Flags & MEM_WRITE)
     {
-        (Flags & MEM_WRITE) Access = PAGE_READWRITE;
+        Access = PAGE_READWRITE;
     }
     else
     {
@@ -145,7 +145,7 @@ _NewFile(void* Filename, DWORD CreationMode, i32 Flags)
     
     DWORD Async = ((Flags & ASYNC_FILE) > 0) ? FILE_FLAG_OVERLAPPED : 0;
     DWORD Hidden = ((Flags & HIDDEN_FILE) > 0) ? FILE_ATTRIBUTE_HIDDEN : 0;
-    DWORD Attributes = Async) | Hidden;
+    DWORD Attributes = Async | Hidden;
     
     file File = (file)CreateFileW((wchar_t*)Filename, AccessRights, ShareMode, NULL,
                                   CreationMode, Attributes, NULL);
@@ -432,13 +432,10 @@ IsExistingDir(void* Path)
 }
 
 external path
-Path(buffer Mem)
+Path(void* Mem)
 {
-    // Path [.Size] is set to either MAX_PATH_SIZE or Mem [.Size], whichever is
-    // smaller. The size is set to 2 byte less, so there's always room for \0.
-    
-    usz PathSize = Min(Mem.Size, MAX_PATH_SIZE);
-    path Result = String(Mem.Base, 0, PathSize - sizeof(wchar_t), EC_UTF16LE);
+    // Expects [Mem] to have at least MAX_PATH_SIZE of size.
+    path Result = String(Mem, 0, MAX_PATH_SIZE - sizeof(wchar_t), EC_UTF16LE);
     return Result;
 }
 
@@ -446,7 +443,7 @@ external path
 PathLit(void* CString)
 {
     // Assumes [CString] is in UTF-16LE.
-    path Result = { CString, 0, 0, EC_UTF16LE };
+    path Result = { (char*)CString, 0, 0, EC_UTF16LE };
     usz CStringSize = 2 * wcslen((wchar_t*)CString);
     Result.WriteCur = Min(CStringSize, MAX_PATH_SIZE);
     return Result;
