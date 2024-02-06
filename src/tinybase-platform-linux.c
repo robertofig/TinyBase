@@ -812,7 +812,7 @@ _GetThreadID(file ThreadHandle)
 }
 
 external thread
-ThreadCreate(thread_proc ThreadProc, void* ThreadArg, bool Waitable)
+InitThread(thread_proc ThreadProc, void* ThreadArg, bool Waitable)
 {
     thread Result = {0};
     
@@ -832,7 +832,7 @@ ThreadCreate(thread_proc ThreadProc, void* ThreadArg, bool Waitable)
 }
 
 external bool
-ThreadChangeScheduling(thread* Thread, int NewScheduling)
+ChangeThreadScheduling(thread* Thread, int NewScheduling)
 {
     int Priority;
     switch (NewScheduling)
@@ -846,7 +846,7 @@ ThreadChangeScheduling(thread* Thread, int NewScheduling)
 }
 
 external i32
-ThreadGetScheduling(thread Thread)
+GetThreadScheduling(thread Thread)
 {
     int Priority = getpriority(PRIO_PROCESS, _GetThreadID(Thread.Handle));
     i32 Result = (Priority >= 7) ? SCHEDULE_LOW : (Priority < -7) ? SCHEDULE_HIGH : SCHEDULE_NORMAL;
@@ -854,7 +854,7 @@ ThreadGetScheduling(thread Thread)
 }
 
 external bool
-ThreadClose(thread* Thread)
+CloseThread(thread* Thread)
 {
     // Function currently is a stub, to be expanded in the future.
     Thread->Handle = 0;
@@ -862,7 +862,7 @@ ThreadClose(thread* Thread)
 }
 
 external bool
-ThreadWait(thread* Thread)
+WaitOnThread(thread* Thread)
 {
     if (!pthread_join((pthread_t)Thread->Handle, 0))
     {
@@ -872,7 +872,7 @@ ThreadWait(thread* Thread)
 }
 
 external bool
-ThreadKill(thread* Thread)
+KillThread(thread* Thread)
 {
     if (!pthread_kill((pthread_t)Thread->Handle, SIGKILL))
     {
@@ -881,11 +881,46 @@ ThreadKill(thread* Thread)
     return false;
 }
 
-external bool
-InitSemaphore(semaphore* Semaphore, i32 InitCount)
+
+//========================================
+// Synchronization
+//========================================
+
+external mutex
+InitMutex(void)
 {
-    int Result = sem_init((sem_t*)Semaphore->Handle, 0, InitCount);
+    mutex Result = {0};
+    pthread_mutex_init((pthread_mutex_t*)Result.Handle);
+    return Result;
+}
+
+external bool
+CloseMutex(mutex* Mutex)
+{
+    int Result = pthread_mutex_destroy((pthread_mutex_t*)Mutex->Handle);
+    return (Result == 0);)
+}
+
+external bool
+LockOnMutex(mutex* Mutex)
+{
+    int Result = pthread_mutex_lock((pthread_mutex_t*)Mutex->Handle);
     return (Result == 0);
+}
+
+external bool
+UnlockMutex(mutex* Mutex)
+{
+    int Result = pthread_mutex_unlock((pthread_mutex_t*)Mutex->Handle);
+    return (Result == 0);
+}
+
+external semaphore
+InitSemaphore(i32 InitCount)
+{
+    semaphore Result = {0};
+    sem_init((sem_t*)Result.Handle, 0, InitCount);
+    return Result;
 }
 
 external bool

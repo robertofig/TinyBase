@@ -579,7 +579,7 @@ external bool
 AppendArrayToPath(void* NewPart, path* Dst)
 {
     // OBS: Assumes [NewPart] is in UTF-16LE.
-    path NewPartPath = PathLit(NewPart);
+    path NewPartPath = PathCString(NewPart);
     return _AppendPathToPath(NewPartPath, Dst);
 }
 
@@ -675,7 +675,7 @@ RemoveDir(void* DirPath, bool RemoveAllFiles)
     // Assumes [DirPath] is in UTF-16LE.
     if (RemoveAllFiles)
     {
-        path RemovePath = PathLit(DirPath);
+        path RemovePath = PathCString(DirPath);
         iter_dir Iter = {0};
         InitIterDir(&Iter, RemovePath);
         
@@ -683,7 +683,7 @@ RemoveDir(void* DirPath, bool RemoveAllFiles)
         {
             path ScratchPath = Iter.AllFiles;
             MoveUpPath(&ScratchPath, 1);
-            path Filename = PathLit(Iter.Filename);
+            path Filename = PathCString(Iter.Filename);
             AppendPathToPath(Filename, &ScratchPath);
             
             if (Iter.IsDir)
@@ -783,25 +783,24 @@ UnloadExternalLibrary(file Library)
 //========================================
 
 external thread
-ThreadCreate(thread_proc ThreadProc, void* ThreadArg, bool Waitable)
+InitThread(thread_proc ThreadProc, void* ThreadArg, bool Waitable)
 {
     // [Waitable] does nothing on Windows.
-    thread Result = {0};
-    Result.Handle = (file)CreateThread(NULL, Megabyte(2),
-                                       (LPTHREAD_START_ROUTINE)ThreadProc,
-                                       ThreadArg, 0, 0);
+    HANDLE Thread = CreateThread(NULL, Megabyte(2), (LPTHREAD_START_ROUTINE)ThreadProc,
+                                 ThreadArg, 0, 0);
+    thread Result = { (file)Thread };
     return Result;
 }
 
 external bool
-ThreadChangeScheduling(thread* Thread, int NewScheduling)
+ChangeThreadScheduling(thread* Thread, int NewScheduling)
 {
     DWORD Priority = NewScheduling * NORMAL_PRIORITY_CLASS;
     return SetPriorityClass((HANDLE)Thread->Handle, Priority);
 }
 
 external i32
-ThreadGetScheduling(thread Thread)
+GetThreadScheduling(thread Thread)
 {
     switch (GetPriorityClass((HANDLE)Thread.Handle))
     {
@@ -818,7 +817,7 @@ ThreadGetScheduling(thread Thread)
 }
 
 external bool
-ThreadClose(thread* Thread)
+CloseThread(thread* Thread)
 {
     // Function currently is a stub, to be expanded in the future.
     CloseHandle((HANDLE)Thread->Handle);
@@ -826,35 +825,65 @@ ThreadClose(thread* Thread)
 }
 
 external bool
-ThreadWait(thread* Thread)
+WaitOnThread(thread* Thread)
 {
     if (WaitForSingleObject((HANDLE)Thread->Handle, INFINITE) != WAIT_FAILED)
     {
-        return ThreadClose(Thread);
+        return CloseThread(Thread);
     }
     return false;
 }
 
 external bool
-ThreadKill(thread* Thread)
+KillThread(thread* Thread)
 {
     if (TerminateThread((HANDLE)Thread->Handle, 0))
     {
-        return ThreadClose(Thread);
+        return CloseThread(Thread);
     }
     return false;
 }
 
-external bool
-InitSemaphore(semaphore* Semaphore, i32 InitCount)
+
+//========================================
+// Synchronization
+//========================================
+
+external mutex
+InitMutex(void)
 {
-    HANDLE Result = CreateSemaphoreA(0, InitCount, I32_MAX, NULL);
-    if (Result != INVALID_HANDLE_VALUE)
-    {
-        *(HANDLE*)Semaphore->Handle = Result;
-        return true;
-    }
-    return false;
+    mutex Result = {0};
+    *(HANDLE*)Result.Handle = CreateMutexA(NULL, FALSE, NULL);
+    return Result;
+}
+
+external bool
+CloseMutex(mutex* Mutex)
+{
+    BOOL Result = CloseHandle(*(HANDLE*)Mutex->Handle);
+    return Result;
+}
+
+external bool
+LockOnMutex(mutex* Mutex)
+{
+    DWORD Result = WaitForSingleObject(*(HANDLE*)Mutex->Handle, INFINITE);
+    return (Result != WAIT_FAILED);
+}
+
+external bool
+UnlockMutex(mutex* Mutex)
+{
+    BOOL Result = ReleaseMutex(*(HANDLE*)Mutex->Handle);
+    return Result;
+}
+
+external semaphore
+InitSemaphore(i32 InitCount)
+{
+    semaphore Result = {0};
+    *(HANDLE*)Result.Handle = CreateSemaphoreA(0, InitCount, I32_MAX, NULL);
+    return Result;
 }
 
 external bool

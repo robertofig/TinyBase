@@ -17,6 +17,32 @@
 
 
 //========================================
+// Platform types and defines
+//========================================
+
+#if defined(TT_WINDOWS)
+# define MAX_PATH_SIZE 520 // 260 wchar_t elements.
+# define INVALID_FILE USZ_MAX
+# define ASYNC_DATA_SIZE 40 // OVERLAPPED struct.
+# define DYNAMIC_LIB_EXT ".dll"
+# define MUTEX_SIZE 8 // Size of HANDLE
+# define SEMAPHORE_SIZE 8 // Size of HANDLE
+# define THREAD_PROC(Name) u32 Name(void* Arg)
+typedef u32 (*thread_proc)(void*);
+#elif defined(TT_LINUX)
+# define MAX_PATH_SIZE 4096
+# define INVALID_FILE USZ_MAX
+# define ASYNC_DATA_SIZE 184 // aiocb struct + timespec struct.
+# define DYNAMIC_LIB_EXT ".so"
+# define MUTEX_SIZE 40 // Size of pthread_mutex_t
+# define SEMAPHORE_SIZE 32 // Size of sem_t
+# define THREAD_PROC(Name) void* Name(void* Arg)
+typedef void* (*thread_proc)(void*);
+#else // Reserved for other platforms;
+#endif
+
+
+//========================================
 // Config
 //========================================
 
@@ -435,89 +461,110 @@ external bool UnloadExternalLibrary(file Library);
 #define SCHEDULE_LOW     2
 #define SCHEDULE_HIGH    4
 
-#if defined(TT_WINDOWS)
-# define SEMAPHORE_SIZE 8 // Size of HANDLE
-# define THREAD_PROC(Name) u32 Name(void* Arg)
-typedef u32 (*thread_proc)(void*);
-#elif defined(TT_LINUX)
-# define SEMAPHORE_SIZE 32 // Size of sem_t
-# define THREAD_PROC(Name) void* Name(void* Arg)
-typedef void* (*thread_proc)(void*);
-#else // Reserved for other platforms;
-#endif
-
 typedef struct thread
 {
     file Handle;
     // Space reserved for expansion.
 } thread;
 
-external thread ThreadCreate(thread_proc ThreadProc, void* ThreadArg, bool Waitable);
+external thread InitThread(thread_proc ThreadProc, void* ThreadArg, bool Waitable);
 
 /* Creates a new thread. [ThreadProc] specifies the entry point, and should be a
  |  function of type thread_proc. [ThreadArg] is the parameter passed to the function
  |  pointed to at [ThreadProc]. [Waitable] determines how to close the thread; if true,
- |  the parent thread must wait on the child thread with ThreadWait() to close it;
- |  otherwise it must call ThreadClose() after it knows the thread has finished.
+ |  the parent thread must wait on the child thread with WaitOnThread() to close it;
+ |  otherwise it must call CloseThread() after it knows the thread has finished.
 |--- Return: thread object, or empty object if creation failed. */
 
-external bool ThreadChangeScheduling(thread* Thread, int NewScheduling);
+external bool ChangeThreadScheduling(thread* Thread, int NewScheduling);
 
 /* Change how frequently [Thread] is awoken by the system. [NewScheduling] can either
  |  be SCHEDULE_NORMAL, SCHEDULE_LOW or SCHEDULE_HIGH.
 |--- Return: true if successful, false if not. */
 
-external i32 ThreadGetScheduling(thread Thread);
+external i32 GetThreadScheduling(thread Thread);
 
 /* Get current scheduling rule for [Thread]. That can be SCHEDULE_NORMAL (1),
  |  SCHEDULE_LOW (2) or SCHEDULE_HIGH (4).
 |--- Return: number referring to thread schedule. */
 
-external bool ThreadClose(thread* Thread);
+external bool CloseThread(thread* Thread);
 
 /* Cleans up thread, after it has finished running. Must only be called on non-waitable
  |  threads. Failure to call it may result in memory leaks.
  |--- Return: true if successful, false if not. */
 
-external bool ThreadWait(thread* Thread);
+external bool WaitOnThread(thread* Thread);
 
 /* Waits on a thread created with Waitable status. This will block the calling thread
  |  until [Thread] finishes running. If it has already finished, returns immediately.
- |  This also cleans up the thread, so no need to call ThreadClose().
+ |  This also cleans up the thread, so no need to call CloseThread().
  |--- Return: true if successful, false if not. */
 
-external bool ThreadKill(thread* Thread);
+external bool KillThread(thread* Thread);
 
 /* Forcefully terminates the running thread, and cleans up its resources. Calling this
  |  function on a thread that has already been closed may have unpredictable behaviour,
  |  and should be avoided.
  |--- Return: true if successful, false if not. */
 
+
+//========================================
+// Synchronization
+//========================================
+
+typedef struct mutex
+{
+    u8 Handle[MUTEX_SIZE];
+} mutex;
+
+external mutex InitMutex(void);
+
+/* Inits a mutex in an unlocked state.
+|--- Return: mutex object, or empty object in failure. */
+
+external bool CloseMutex(mutex* Mutex);
+
+/* Closes the [Mutex] object.
+|--- Return: true if successful, false if not. */
+
+external bool LockOnMutex(mutex* Mutex);
+
+/* Acquires the lock on the mutex. If the mutex is already locked by another thread,
+|  it will block until the mutex is released.
+|--- Return: true if successful, false if not. */
+
+external bool UnlockMutex(mutex* Mutex);
+
+/* Releases the lock on the mutex.
+|--- Return: true if successful, false if not. */
+
+
 typedef struct semaphore
 {
     u8 Handle[SEMAPHORE_SIZE];
 } semaphore;
 
-external bool InitSemaphore(semaphore* Semaphore, i32 InitCount);
+external semaphore InitSemaphore(i32 InitCount);
 
-/* Inits a semaphore object and assigns it to [Semaphore], with a [InitCount] value.
-|--- Return: true if successful, false if not. */
+/* Inits a semaphore with a [InitCount] value.
+|--- Return: semaphore object, or empty object in failure. */
 
 external bool CloseSemaphore(semaphore* Semaphore);
 
 /* Closes the [Semaphore] object.
 |--- Return: true if successful, false if not. */
 
-external bool IncreaseSemaphore(semaphore* Semaphore);
-
-/* Increases the count of [Semaphore] by 1. For each time this function is called,
-|  some thread blocking on WaitOnSemaphore() will resume execution.
-|--- Return: true if successful, false if not. */
-
 external bool WaitOnSemaphore(semaphore* Semaphore);
 
 /* Decreases the count of [Semaphore] by 1. If the count is 0, this function will
 |  block until another thread increases the count with IncreaseSemaphore().
+|--- Return: true if successful, false if not. */
+
+external bool IncreaseSemaphore(semaphore* Semaphore);
+
+/* Increases the count of [Semaphore] by 1. For each time this function is called,
+|  some thread blocking on WaitOnSemaphore() will resume execution.
 |--- Return: true if successful, false if not. */
 
 
