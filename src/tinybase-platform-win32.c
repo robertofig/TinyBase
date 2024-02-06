@@ -440,7 +440,7 @@ Path(void* Mem)
 }
 
 external path
-PathLit(void* CString)
+PathCString(void* CString)
 {
     // Assumes [CString] is in UTF-16LE.
     path Result = { (char*)CString, 0, 0, EC_UTF16LE };

@@ -231,14 +231,14 @@ typedef string path;
 external path Path(void* Mem);
 
 /* Creates a path from [Mem] buffer, and sets its [.Size] to MAX_PATH_SIZE, minus
-|  one char to guarantee it will always have a null-terminator.
+|  one char to guarantee it will always be null-terminated.
 |--- Return: new path object.*/
 
-external path PathLit(void* CString);
+external path PathCString(void* CString);
 
 /* Creates a path from [CString] memory region, and sets [.WriteCur] to its length
  |  or MAX_PATH_SIZE, whichever is smaller. This length is the number of bytes until
- |  the zero-termination. If [CString] is not zero-terminated, an overflow may occur.
+ |  the null-termination. If [CString] is not null-terminated, an overflow may occur.
  |--- Return: new path object. */
 
 external bool AppendArrayToPath(void* NewPart, path* Dst);
