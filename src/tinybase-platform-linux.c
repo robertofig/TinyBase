@@ -488,7 +488,8 @@ _AppendPathToPath(path Src, path* Dst)
         if (!AppendCharToString('/', &Tmp)) return false;
     }
     
-    if (Src.Base[0] == '/')
+    if (Dst->WriteCur > 0
+        && Src.Base[0] == '/')
     {
         AdvanceBuffer(&Src.Buffer, 1);
     }
