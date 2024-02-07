@@ -73,7 +73,7 @@ AtomicCompareExchange16(void* volatile Dst, i16 Compare, i16 Value)
     InterlockedCompareExchange16((SHORT* volatile)Dst, Value, Compare);
     bool Result = true;
 #elif defined(TT_GCC)
-    bool Result = __atomic_compare_exchange_n((i16*)Dst volatile, &Compare, Value, 0,
+    bool Result = __atomic_compare_exchange_n((i16* volatile)Dst, &Compare, Value, 0,
                                               __ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
 #else // Reserved for other compilers.
 #endif
@@ -87,7 +87,7 @@ AtomicCompareExchange32(void* volatile Dst, i32 Compare, i32 Value)
     InterlockedCompareExchange((LONG* volatile)Dst, Value, Compare);
     bool Result = true;
 #elif defined(TT_GCC)
-    bool Result = __atomic_compare_exchange_n((i32*)Dst volatile, &Compare, Value, 0,
+    bool Result = __atomic_compare_exchange_n((i32* volatile)Dst, &Compare, Value, 0,
                                               __ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
 #else // Reserved for other compilers.
 #endif
@@ -101,7 +101,7 @@ AtomicCompareExchange64(void* volatile Dst, i64 Compare, i64 Value)
     InterlockedCompareExchange64((LONG64* volatile)Dst, Value, Compare);
     bool Result = true;
 #elif defined(TT_GCC)
-    bool Result = __atomic_compare_exchange_n((i64*)Dst volatile, &Compare, Value, 0,
+    bool Result = __atomic_compare_exchange_n((i64* volatile)Dst, &Compare, Value, 0,
                                               __ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
 #else // Reserved for other compilers.
 #endif
