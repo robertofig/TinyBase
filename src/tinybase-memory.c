@@ -568,6 +568,57 @@ _BufferInBufferIdxAVX2(buffer Needle, buffer Haystack)
 {
     if (Haystack.WriteCur >= Needle.WriteCur)
     {
+        __m256i FirstByte = _mm256_set1_epi8(Needle.Base[0]);
+        __m256i LastByte  = _mm256_set1_epi8(Needle.Base[Needle.WriteCur-1]);
+        
+        u8* Ptr;
+        for (Ptr = Haystack.Base
+             ; Ptr < (Haystack.Base+Haystack.WriteCur-Needle.WriteCur)
+             ; Ptr += 32)
+        {
+            __m256i FirstBlock = _mm256_loadu_si256((__m256i*)&Ptr[0]);
+            __m256i LastBlock  = _mm256_loadu_si256((__m256i*)&Ptr[Needle.WriteCur-1]);
+            
+            __m256i FirstCmp = _mm256_cmpeq_epi8(FirstByte, FirstBlock);
+            __m256i LastCmp  = _mm256_cmpeq_epi8(LastByte, LastByte);
+            
+            u32 Mask = _mm256_movemask_epi8(_mm256_and_si256(FirstCmp, LastCmp));
+            while (Mask != 0)
+            {
+                i32 BitPos = GetFirstBitSet(Mask);
+                
+                u8* Start = Ptr + BitPos;
+                if (memcmp(Start, Needle.Base, Needle.WriteCur) == 0)
+                {
+                    return (Start - Haystack.Base);
+                }
+                
+                Mask = FlipBit(Mask, BitPos);
+            }
+        }
+        
+        while (Ptr < (Haystack.Base+Haystack.WriteCur-Needle.WriteCur))
+        {
+            if ((Ptr[0] == Needle.Base[0])
+                && (Ptr[Needle.WriteCur-1] == Needle.Base[Needle.WriteCur-1]))
+            {
+                if (memcmp(Ptr, Needle.Base, Needle.WriteCur) == 0)
+                {
+                    return (Ptr - Haystack.Base);
+                }
+            }
+            Ptr++;
+        }
+    }
+    
+    return INVALID_IDX;
+}
+
+internal usz
+__BufferInBufferIdxAVX2(buffer Needle, buffer Haystack)
+{
+    if (Haystack.WriteCur >= Needle.WriteCur)
+    {
         u8* HaystackPtr = Haystack.Base;
         usz HaystackRemaining = Haystack.WriteCur;
         u8 NeedleEnd = Needle.Base[Needle.WriteCur-1];

@@ -184,14 +184,34 @@ union { u64 I; f64 F; } TT_INF64 = { 0x7FF0000000000000 };
 internal inline i32
 GetFirstBitSet(u32 Mask)
 {
+#if defined(TT_GCC) || defined(TT_CLANG)
+    i32 Result = __builtin_ctz(Mask);
+#else
     // Source: https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2Float
-    local const i32 MultiplyDeBruijnBitPosition[32] = 
-    {
+    local const i32 MultiplyDeBruijnBitPosition[32] = {
         0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 
         31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
     };
     
     i32 Result = MultiplyDeBruijnBitPosition[((u32)((Mask & -Mask) * 0x077CB531U)) >> 27];
+#endif
+    return Result;
+}
+
+internal inline u32
+FlipBit(u32 Number, i32 BitIdx)
+{
+    local const u32 Patterns[32] = {
+        0xFFFFFFFE, 0xFFFFFFFD, 0xFFFFFFFB, 0xFFFFFFF7,
+        0xFFFFFFEF, 0xFFFFFFDF, 0xFFFFFFBF, 0xFFFFFF7F,
+        0xFFFFFEFF, 0xFFFFFDFF, 0xFFFFFBFF, 0xFFFFF7FF,
+        0xFFFFEFFF, 0xFFFFDFFF, 0xFFFFBFFF, 0xFFFF7FFF,
+        0xFFFEFFFF, 0xFFFDFFFF, 0xFFFBFFFF, 0xFFF7FFFF,
+        0xFFEFFFFF, 0xFFDFFFFF, 0xFFBFFFFF, 0xFF7FFFFF,
+        0xFEFFFFFF, 0xFDFFFFFF, 0xFBFFFFFF, 0xF7FFFFFF,
+        0xEFFFFFFF, 0xDFFFFFFF, 0xBFFFFFFF, 0x7FFFFFFF
+    };
+    u32 Result = Number & Patterns[BitIdx];
     return Result;
 }
 
