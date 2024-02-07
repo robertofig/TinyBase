@@ -11,6 +11,7 @@
 #include <linux/version.h>
 #include <pthread.h>
 #include <sched.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -576,7 +577,7 @@ external bool
 AppendArrayToPath(void* NewPart, path* Dst)
 {
     // OBS: Assumes [NewPart] is UTF-8 compatible.
-    path NewPartPath = PathLit(NewPart);
+    path NewPartPath = PathCString(NewPart);
     return _AppendPathToPath(NewPartPath, Dst);
 }
 
@@ -682,14 +683,14 @@ RemoveDir(void* DirPath, bool RemoveAllFiles)
     // Assumes [DirPath] is UTF-8 compatible.
     if (RemoveAllFiles)
     {
-        path RemovePath = PathLit(DirPath);
+        path RemovePath = PathCString(DirPath);
         iter_dir Iter = {0};
         InitIterDir(&Iter, RemovePath);
         
         while (ListFiles(&Iter))
         {
             path ScratchPath = Iter.AllFiles;
-            path Filename = PathLit(Iter.Filename);
+            path Filename = PathCString(Iter.Filename);
             AppendPathToPath(Filename, &ScratchPath);
             
             bool Result = (Iter.IsDir) ? RemoveDir(ScratchPath.Base, true) : RemoveFile(ScratchPath.Base);
@@ -866,7 +867,7 @@ WaitOnThread(thread* Thread)
 {
     if (!pthread_join((pthread_t)Thread->Handle, 0))
     {
-        return ThreadClose(Thread);
+        return CloseThread(Thread);
     }
     return false;
 }
@@ -876,7 +877,7 @@ KillThread(thread* Thread)
 {
     if (!pthread_kill((pthread_t)Thread->Handle, SIGKILL))
     {
-        return ThreadClose(Thread);
+        return CloseThread(Thread);
     }
     return false;
 }
@@ -890,7 +891,7 @@ external mutex
 InitMutex(void)
 {
     mutex Result = {0};
-    pthread_mutex_init((pthread_mutex_t*)Result.Handle);
+    pthread_mutex_init((pthread_mutex_t*)Result.Handle, NULL);
     return Result;
 }
 
@@ -898,7 +899,7 @@ external bool
 CloseMutex(mutex* Mutex)
 {
     int Result = pthread_mutex_destroy((pthread_mutex_t*)Mutex->Handle);
-    return (Result == 0);)
+    return (Result == 0);
 }
 
 external bool

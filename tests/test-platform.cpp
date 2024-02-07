@@ -412,10 +412,10 @@ int main()
     // Filesystem
     char DirPathBuf[MAX_PATH_SIZE] = {0};
     path DirPath = Path(DirPathBuf);
-    path DirExpected = PathLit(CompareListDir);
-    path AppendCompare1 = PathLit(TempdirDir1Dir2);
-    path MoveUpCompare1 = PathLit(TempdirDir1);
-    path MoveUpCompare2 = PathLit(EmptyLit);
+    path DirExpected = PathCString(CompareListDir);
+    path AppendCompare1 = PathCString(TempdirDir1Dir2);
+    path MoveUpCompare1 = PathCString(TempdirDir1);
+    path MoveUpCompare2 = PathCString(EmptyLit);
     AppendPathToPath(MoveUpCompare1, &DirPath);
     
     Test(MakeDir, Tempdir);
@@ -425,16 +425,16 @@ int main()
     Test(IsExistingPath, Tempdir2, false);
     Test(IsExistingDir, Tempdir, true);
     Test(IsExistingDir, __VFILE__, false);
-    Test(AppendPathToPath, PathLit(Dir2Lit), &DirPath, AppendCompare1);
+    Test(AppendPathToPath, PathCString(Dir2Lit), &DirPath, AppendCompare1);
     Test(MoveUpPath, &DirPath, 1, MoveUpCompare1);
     Test(MoveUpPath, &DirPath, 3, MoveUpCompare2);
     Test(MoveUpPath, &DirPath, 1, MoveUpCompare2);
     {
-        AppendPathToPath(PathLit(TestLit), &DirPath);
-        AppendPathToPath(PathLit(TempdirLit), &DirPath);
-        AppendPathToPath(PathLit(Dir1Lit), &DirPath);
-        AppendPathToPath(PathLit(Dir2Lit), &DirPath);
-        AppendPathToPath(PathLit(TempDLit), &DirPath);
+        AppendPathToPath(PathCString(TestLit), &DirPath);
+        AppendPathToPath(PathCString(TempdirLit), &DirPath);
+        AppendPathToPath(PathCString(Dir1Lit), &DirPath);
+        AppendPathToPath(PathCString(Dir2Lit), &DirPath);
+        AppendPathToPath(PathCString(TempDLit), &DirPath);
         file NewFile = CreateNewFile(DirPath.Base, READ_SHARE);
         CloseFileHandle(NewFile);
         CloseFileHandle(File);
