@@ -345,21 +345,8 @@ StringToFloat(string Src)
 // Query
 //========================================
 
-internal usz
-_JumpCharInsteadOfByte(string Str, usz Idx, int Flags)
-{
-    // If return type is "after", we need to advance by one mb_char, not by one byte.
-    if (Idx != INVALID_IDX
-        && (Flags & RETURN_IDX_AFTER || Flags & RETURN_PTR_AFTER))
-    {
-        Idx += GetNextCharSize(&Str.Base[--Idx], Str.Enc);
-    }
-    return Idx;
-}
-
 external usz
 CharInString(mb_char Needle, string Haystack, int Flags)
-// Assumes Needle is in the same encoding as Haystack.
 {
     usz Result = INVALID_IDX;
     u32 NeedleSize = GetMultibyteCharSize(Needle, Haystack.Enc);
@@ -371,7 +358,6 @@ CharInString(mb_char Needle, string Haystack, int Flags)
     {
         buffer NeedleBuf = Buffer((u8*)&Needle, NeedleSize, 0);
         Result = BufferInBuffer(NeedleBuf, Haystack.Buffer, Flags);
-        Result = _JumpCharInsteadOfByte(Haystack, Result, Flags);
     }
     return Result;
 }
@@ -383,7 +369,6 @@ StringInString(string Needle, string Haystack, int Flags)
     if (Needle.Enc == Haystack.Enc)
     {
         Result = BufferInBuffer(Needle.Buffer, Haystack.Buffer, Flags);
-        Result = _JumpCharInsteadOfByte(Haystack, Result, Flags);
     }
     return Result;
 }
